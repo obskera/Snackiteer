@@ -1,0 +1,161 @@
+# Engine AI Workflows
+
+Copy/paste prompts and guardrails for AI-assisted work on runtime gameplay systems.
+
+Use this file when the task is broader than prefab generation.
+
+## Always Include These Constraints
+
+```txt
+Constraints:
+- Keep architecture boundaries:
+  - components/ = UI/render/input wiring
+  - logic/ = pure reusable systems
+  - services/ = stateful orchestration
+- Reuse existing modules before creating new primitives.
+- Keep changes minimal and scope-accurate.
+- Update focused tests and relevant docs for public behavior changes.
+```
+
+## Prompt: Add/Extend Gameplay Loop System
+
+```txt
+Implement or extend a gameplay loop system in this UrsaManus repo.
+
+Target system:
+- [grid movement | projectiles | weapon prefabs | spell prefabs | input mapping]
+
+Requirements:
+- Keep deterministic service behavior and typed APIs.
+- Keep input action semantics north/south/east/west/interact.
+- Add focused tests near the changed modules.
+- Update docs with copy/paste snippets.
+
+Deliverables:
+1) Minimal implementation changes.
+2) Focused tests.
+3) docs updates in USAGE/tutorials/cheatsheets.
+
+Validation:
+- npm run test:run -- src/tests/[focused test files]
+- npm run lint
+```
+
+## Prompt: Add/Refresh Cheatsheet Snippets
+
+```txt
+Refresh docs snippets for [target subsystem] in this UrsaManus repo.
+
+Requirements:
+- Snippets must be copy/paste-usable (no placeholders like {…}).
+- Include imports, initialization, and usage call flow.
+- Keep examples minimal but runnable.
+- Link from docs/USAGE.md so users can discover the page.
+
+Deliverables:
+1) Updated cheatsheet/tutorial docs.
+2) Updated docs map references.
+3) Short validation command block.
+```
+
+## Prompt: System Consistency Sweep
+
+```txt
+Do a docs consistency sweep for current runtime systems.
+
+Check:
+1) Navigation clarity (docs map and per-topic links).
+2) Runtime system coverage (services + components + tests).
+3) Copy/paste snippet quality and completeness.
+4) AI workflow docs freshness.
+
+Output:
+- concise gap list
+- exact files changed
+- final validation command results
+```
+
+## Prompt: Build/Extend Sprite Pack Tool
+
+```txt
+Implement or extend the sprite pack generator tool in this UrsaManus repo.
+
+Requirements:
+- Support pixel-size frame dimensions: 8px, 16px, 32px, 64px.
+- Support genre-driven output presets (top-down, dungeon, sidescroller, rpg).
+- Generate character + enemy animation clips (`idle`, `move`, `atk`, `def`, `hurt`).
+- Generate environment/interactable variants (walls, decorations, chests/props).
+- Export PNG spritesheet plus JSON metadata compatible with sprite atlas clip contracts.
+- Keep generation deterministic for the same seed/options.
+
+Deliverables:
+1) Service-layer generator + pack metadata contract.
+2) Tool-mode UI for generation preview/export.
+3) Focused tests for determinism and output coverage.
+4) docs/USAGE.md and docs/tools/README updates for tool-mode URL + usage.
+
+Validation:
+- npm run test:run -- src/tests/spritePackGenerator.test.ts
+- npm run lint
+```
+
+## Prompt: Generate/Edit Room Templates (Tile Matrix)
+
+```txt
+Generate a room template using the tile matrix system in this UrsaManus repo.
+
+Requirements:
+- Output format: um-room-template-v1 JSON.
+- Use only default tile legend codes (see docs/tools/TILE_MATRIX_SPEC.md).
+- Use only default entity markers (P, E, I, O) in overlay.
+- All rows must have equal column counts matching declared width.
+- Overlay dimensions must match tile dimensions.
+
+Deliverables:
+1) Valid RoomTemplate JSON.
+2) Paste into tile matrix editor import to verify.
+
+Validation:
+- npm run test:run -- src/tests/tileMatrixParser.test.ts src/tests/tileMatrixConverters.test.ts
+- Import into editor UI and confirm no validation errors.
+```
+
+See also:
+- [Tile Matrix AI Quickstart](./TILE_MATRIX_AI_QUICKSTART.md)
+- [Tile Matrix Prompt Cheatsheet](./TILE_MATRIX_PROMPT_CHEATSHEET.md)
+- [Tile Matrix Prompt Recipes](./TILE_MATRIX_PROMPT_RECIPES.md)
+
+## Validation Command Sets
+
+Focused gameplay loop set:
+
+```bash
+npm run test:run -- src/tests/gridMovement.test.ts src/tests/VirtualControlStick.test.tsx src/tests/inputMappingAdapters.test.ts src/tests/projectiles.test.ts src/tests/weaponPrefabs.test.ts src/tests/spellPrefabs.test.ts src/tests/gameStarterPacks.test.ts
+```
+
+Full quality set:
+
+```bash
+npm run lint
+npm run test:run
+```
+
+### Context-saving mode (ENABLE_TESTS=false)
+
+When working in an AI session and you want to minimize context/token usage:
+
+```bash
+echo "ENABLE_TESTS=false" > .env
+```
+
+All `test:*` and `quality:*` commands will exit with a skip message. Use `npm run lint` and `npm run build` for validation instead.
+
+**Before PR or release — re-enable tests:**
+
+```bash
+echo "ENABLE_TESTS=true" > .env   # or delete .env
+npm run lint
+npm run test:run
+```
+
+See [../CONTRIBUTING.md](../CONTRIBUTING.md) for the full toggle reference.

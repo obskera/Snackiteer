@@ -1,0 +1,182 @@
+.screen-controller {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.screen-controller.snes-layout {
+    width: min(100%, 40rem);
+    justify-content: space-between;
+    gap: 1.5rem;
+    flex-wrap: nowrap;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 14px;
+    background: rgba(15, 23, 42, 0.6);
+    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.14);
+    padding: 1.5rem;
+    box-sizing: border-box;
+}
+
+.screen-control-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.screen-control-group-title {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: rgba(248, 250, 252, 0.85);
+}
+
+.screen-control-group-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.dpad-group,
+.face-button-group {
+    flex: 0 0 auto;
+}
+
+.hjkl-group {
+    justify-self: end;
+}
+
+.dpad-group .screen-control-group-content {
+    justify-content: flex-start;
+}
+
+.face-button-group .screen-control-group-content {
+    justify-content: flex-end;
+}
+
+.screen-control {
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    background: rgba(30, 41, 59, 0.8);
+    color: #f8fafc;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.screen-control:hover {
+    background: rgba(51, 65, 85, 0.9);
+}
+
+.screen-control:focus {
+    outline: none;
+}
+
+.screen-control:focus-visible {
+    outline: 2px solid rgba(125, 211, 252, 0.95);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 2px rgba(14, 116, 144, 0.35);
+}
+
+.screen-control:active {
+    filter: brightness(0.85);
+    transform: translateY(1px);
+}
+
+.screen-control.is-held {
+    filter: brightness(0.85);
+    transform: translateY(1px);
+}
+
+.compass-direction-control {
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    grid-template-rows: repeat(3, auto);
+    grid-template-areas:
+        ". north ."
+        "west . east"
+        ". south .";
+    gap: 0;
+}
+
+.direction-button,
+.compass-button {
+    border-radius: 9999px;
+    width: 4.5rem;
+    height: 4.5rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.direction-button.north,
+.compass-button.north {
+    grid-area: north;
+}
+
+.direction-button.south,
+.compass-button.south {
+    grid-area: south;
+}
+
+.direction-button.east,
+.compass-button.east {
+    grid-area: east;
+}
+
+.direction-button.west,
+.compass-button.west {
+    grid-area: west;
+}
+
+.on-screen-arrow-control {
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    grid-template-rows: repeat(3, auto);
+    grid-template-areas:
+        ". north ."
+        "west . east"
+        ". south .";
+    gap: 0;
+}
+
+.hjkl-row-control {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+}
+
+.hjkl-button {
+    border-radius: 0.5rem;
+    width: 3.1rem;
+    height: 3.1rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+}
+
+@media (max-width: 700px) {
+    .screen-controller.snes-layout {
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 1rem;
+    }
+
+    .direction-button,
+    .compass-button {
+        width: 3rem;
+        height: 3rem;
+    }
+
+    .hjkl-button {
+        width: 2.7rem;
+        height: 2.7rem;
+        font-size: 0.95rem;
+    }
+}

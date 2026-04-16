@@ -1,0 +1,74 @@
+name: CI
+
+on:
+    workflow_dispatch:
+
+env:
+    ENABLE_TESTS: "true"
+
+jobs:
+    content-quality-gates:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: npm
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Content quality gates
+              run: npm run quality:content
+
+            - name: Balancing governance gates
+              run: npm run quality:balance
+
+            - name: Accessibility QA matrix gates
+              run: npm run quality:accessibility
+
+            - name: Recovery contract gates
+              run: npm run quality:recovery
+
+            - name: Tool certification contract gates
+              run: npm run quality:tool:certification
+
+            - name: Prefab AI verification flow
+              run: npm run prefab:ai:verify -- --prefab-id ci-prefab-catalog --generated-by ai --reviewer ci-bot --out tmp/cert/prefab-ai-verification-report.json
+
+            - name: Upload prefab AI verification artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: prefab-ai-verification-report
+                  path: tmp/cert/prefab-ai-verification-report.json
+                  if-no-files-found: error
+
+    verify:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: npm
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Lint
+              run: npm run lint
+
+            - name: Unit tests
+              run: npm run test:run
+
+            - name: Strict coverage
+              run: npm run test:coverage:strict

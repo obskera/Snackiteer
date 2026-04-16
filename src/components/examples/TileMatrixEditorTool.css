@@ -1,0 +1,181 @@
+.TileMatrixEditor {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+    font-family: monospace;
+    font-size: 13px;
+    max-width: 960px;
+}
+
+.TileMatrixEditor h3 {
+    margin: 0 0 4px 0;
+    font-size: 14px;
+}
+
+.TileMatrixEditor fieldset {
+    border: 1px solid #555;
+    padding: 8px;
+    margin: 0;
+}
+
+.TileMatrixEditor legend {
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.TileMatrixEditor textarea {
+    font-family: monospace;
+    font-size: 13px;
+    width: 100%;
+    box-sizing: border-box;
+    resize: vertical;
+    padding: 6px;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    border: 1px solid #555;
+}
+
+.TileMatrixEditor input[type="text"] {
+    font-family: monospace;
+    font-size: 13px;
+    padding: 4px 6px;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    border: 1px solid #555;
+}
+
+.TileMatrixEditor button {
+    font-family: monospace;
+    font-size: 12px;
+    padding: 4px 10px;
+    cursor: pointer;
+}
+
+.TileMatrixEditor .TileMatrixEditor__status {
+    padding: 6px;
+    border: 1px solid #555;
+    background: #1a1a2e;
+    min-height: 1.6em;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.TileMatrixEditor .TileMatrixEditor__status--error {
+    color: #f44;
+}
+
+.TileMatrixEditor .TileMatrixEditor__status--ok {
+    color: #4f4;
+}
+
+.TileMatrixEditor .TileMatrixEditor__grid {
+    display: inline-grid;
+    gap: 1px;
+    background: #333;
+    border: 1px solid #555;
+    overflow: auto;
+    max-height: 400px;
+}
+
+.TileMatrixEditor .TileMatrixEditor__cell {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+    position: relative;
+    user-select: none;
+}
+
+.TileMatrixEditor .TileMatrixEditor__cell--floor {
+    background: #2a2a3a;
+    color: #888;
+}
+
+.TileMatrixEditor .TileMatrixEditor__cell--wall {
+    background: #5a4a3a;
+    color: #ddd;
+}
+
+.TileMatrixEditor .TileMatrixEditor__cell--edge {
+    background: #4a3a2a;
+    color: #cba;
+}
+
+.TileMatrixEditor .TileMatrixEditor__cell--special {
+    background: #2a3a4a;
+    color: #8cf;
+}
+
+.TileMatrixEditor .TileMatrixEditor__cell--terrain {
+    background: #2a4a3a;
+    color: #8e8;
+}
+
+.TileMatrixEditor .TileMatrixEditor__cell--hazard {
+    background: #4a2a2a;
+    color: #f88;
+}
+
+.TileMatrixEditor .TileMatrixEditor__cell--unknown {
+    background: #333;
+    color: #666;
+}
+
+.TileMatrixEditor .TileMatrixEditor__overlay-badge {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    font-size: 9px;
+    font-weight: bold;
+    background: rgba(0, 0, 0, 0.7);
+    color: #ff0;
+    padding: 0 3px;
+    border-radius: 2px;
+    line-height: 1.3;
+}
+
+.TileMatrixEditor .TileMatrixEditor__meta-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: end;
+}
+
+.TileMatrixEditor .TileMatrixEditor__meta-row label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 11px;
+}
+
+.TileMatrixEditor .TileMatrixEditor__legend-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.TileMatrixEditor .TileMatrixEditor__legend-table th,
+.TileMatrixEditor .TileMatrixEditor__legend-table td {
+    border: 1px solid #444;
+    padding: 2px 6px;
+    text-align: left;
+}
+
+.TileMatrixEditor .TileMatrixEditor__legend-table th {
+    background: #2a2a3a;
+}
+
+.TileMatrixEditor .TileMatrixEditor__actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.TileMatrixEditor .TileMatrixEditor__json-area {
+    min-height: 120px;
+    max-height: 300px;
+}
