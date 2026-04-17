@@ -1,0 +1,129 @@
+/* ── Detail Popover (centered overlay) ─────────────────── */
+
+.detail-popover {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 10, 18, 0.92);
+    backdrop-filter: blur(6px);
+}
+
+.detail-popover__card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 20px 24px;
+    background: #12121e;
+    border: 2px solid #ffd70066;
+    border-radius: 10px;
+    max-width: 300px;
+    width: 90%;
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.15);
+}
+
+.detail-popover__name {
+    color: #e0e0e0;
+    font-family: monospace;
+    font-size: 18px;
+    font-weight: 900;
+    text-align: center;
+    line-height: 1.3;
+}
+
+.detail-popover__meta {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.detail-popover__rarity {
+    font-family: monospace;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.detail-popover__edition {
+    color: #ff80ab;
+    font-family: monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.detail-popover__desc {
+    color: #d4c0ff;
+    font-family: monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    text-align: center;
+    margin: 4px 0 0;
+}
+
+.detail-popover__perks {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+}
+
+.detail-popover__perks li {
+    color: #39ff14;
+    font-family: monospace;
+    font-size: 12px;
+}
+
+.detail-popover__extra {
+    color: #888;
+    font-family: monospace;
+    font-size: 11px;
+    margin: 0;
+    text-align: center;
+}
+
+.detail-popover__actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.detail-popover__sell {
+    padding: 6px 16px;
+    background: #3a1010;
+    border: 1px solid #ff4040;
+    border-radius: 4px;
+    color: #ff6060;
+    font-family: monospace;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.detail-popover__sell:hover {
+    background: #5a1010;
+}
+
+.detail-popover__close {
+    margin-top: 4px;
+    padding: 6px 20px;
+    background: #163016;
+    border: 1px solid #39ff14;
+    border-radius: 4px;
+    color: #39ff14;
+    font-family: monospace;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.detail-popover__close:hover {
+    background: #1e4a1e;
+}

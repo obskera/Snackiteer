@@ -1,0 +1,53 @@
+/* ── Particle burst ───────────────────────────────────────
+   Each particle shoots outward from center using rotate+translate,
+   then fades out. All driven by CSS custom properties.
+   ──────────────────────────────────────────────────────── */
+
+.particle-burst {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    /* Center the burst origin */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.particle {
+    position: absolute;
+    width: var(--p-size, 3px);
+    height: var(--p-size, 3px);
+    background: var(--p-color, #39ff14);
+    border-radius: 50%;
+    box-shadow: 0 0 4px var(--p-color, #39ff14);
+    opacity: 0;
+    will-change: transform, opacity;
+    animation: particle-shoot var(--p-life, 600ms) cubic-bezier(0.16, 1, 0.3, 1) var(--p-delay, 0ms) forwards;
+}
+
+@keyframes particle-shoot {
+    0% {
+        opacity: 1;
+        transform:
+            rotate(var(--p-angle, 0deg))
+            translateX(0)
+            rotate(0deg)
+            scale(1);
+    }
+    50% {
+        opacity: 0.9;
+        transform:
+            rotate(var(--p-angle, 0deg))
+            translateX(calc(var(--p-dist, 20px) * 0.7))
+            rotate(var(--p-spin, 0deg))
+            scale(1.2);
+    }
+    100% {
+        opacity: 0;
+        transform:
+            rotate(var(--p-angle, 0deg))
+            translateX(var(--p-dist, 20px))
+            rotate(var(--p-spin, 0deg))
+            scale(0.3);
+    }
+}

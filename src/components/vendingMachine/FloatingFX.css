@@ -1,0 +1,157 @@
+/* ── Floating FX overlay ─────────────────────────────────
+   Layered animation approach for butter-smooth motion:
+   - .vm-floater       → handles DRIFT (translateY) + fade
+   - .vm-floater__inner → handles SCALE pop + WIGGLE (rotate)
+   - .vm-floater__text  → handles outline GLOW highlight
+   Each layer has one simple animation = GPU-friendly, no jank.
+   ──────────────────────────────────────────────────────── */
+
+.vm-fx-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 50;
+    overflow: visible;
+    display: grid;
+    grid-template-columns: repeat(3, calc(var(--px, 4px) * 16));
+    grid-template-rows: repeat(3, calc(var(--px, 4px) * 16));
+    gap: calc(var(--px, 4px) * 2);
+    justify-content: center;
+    justify-items: center;
+    align-items: center;
+}
+
+/* ── Outer: grid placement + drift + fade ────────────── */
+
+.vm-floater {
+    grid-column: calc(var(--fx-col) + 1);
+    grid-row: calc(var(--fx-row) + 1);
+    position: relative;
+    translate: var(--fx-offset-x, 0px) 0;
+    will-change: transform, opacity;
+    animation:
+        fx-drift 1.8s cubic-bezier(0.0, 0.0, 0.2, 1) var(--fx-delay, 0ms) forwards,
+        fx-fade  1.8s cubic-bezier(0.0, 0.0, 0.2, 1) var(--fx-delay, 0ms) forwards;
+}
+
+@keyframes fx-drift {
+    0%   { transform: translateY(0); }
+    100% { transform: translateY(-56px); }
+}
+
+@keyframes fx-fade {
+    0%   { opacity: 1; }
+    60%  { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* ── Middle: scale pop + wiggle ──────────────────────── */
+
+.vm-floater__inner {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    will-change: transform;
+    animation:
+        fx-pop    0.5s  cubic-bezier(0.34, 1.56, 0.64, 1) var(--fx-delay, 0ms) both,
+        fx-wiggle 0.8s  ease-in-out calc(var(--fx-delay, 0ms) + 400ms) both;
+}
+
+/* Pop: start tiny → overshoot → settle */
+@keyframes fx-pop {
+    0%   { transform: scale(0); }
+    60%  { transform: scale(1.25); }
+    80%  { transform: scale(0.92); }
+    100% { transform: scale(1); }
+}
+
+/* Wiggle: gentle oscillation at full size */
+@keyframes fx-wiggle {
+    0%   { transform: rotate(0deg)   scale(1); }
+    15%  { transform: rotate(-3deg)  scale(1.06); }
+    30%  { transform: rotate(2.5deg) scale(1.04); }
+    45%  { transform: rotate(-2deg)  scale(1.02); }
+    60%  { transform: rotate(1deg)   scale(1.01); }
+    75%  { transform: rotate(-0.5deg) scale(1); }
+    100% { transform: rotate(0deg)   scale(0.92); }
+}
+
+/* ── Inner: text with glow outline highlight ─────────── */
+
+.vm-floater__text {
+    position: relative;
+    font-family: monospace;
+    font-weight: 900;
+    white-space: nowrap;
+    color: var(--fx-color, #fff);
+    text-shadow:
+        0 0 6px var(--fx-color, #fff),
+        0 1px 0 rgba(0,0,0,0.5);
+    animation: fx-glow 1.2s ease-in-out var(--fx-delay, 0ms) both;
+}
+
+/* Glow: brightness pulse for the outline highlight moment */
+@keyframes fx-glow {
+    0%   { filter: brightness(1)   drop-shadow(0 0 0px var(--fx-color, #fff)); }
+    25%  { filter: brightness(1.6) drop-shadow(0 0 8px var(--fx-color, #fff)); }
+    45%  { filter: brightness(1)   drop-shadow(0 0 3px var(--fx-color, #fff)); }
+    55%  { filter: brightness(1.3) drop-shadow(0 0 6px var(--fx-color, #fff)); }
+    70%  { filter: brightness(1)   drop-shadow(0 0 2px var(--fx-color, #fff)); }
+    100% { filter: brightness(0.8) drop-shadow(0 0 0px var(--fx-color, #fff)); }
+}
+
+/* ── Kind-specific overrides ─────────────────────────── */
+
+.vm-floater--coin .vm-floater__text {
+    font-size: calc(var(--px, 4px) * 4.5);
+}
+
+.vm-floater--damage .vm-floater__text {
+    font-size: calc(var(--px, 4px) * 5);
+    letter-spacing: -0.5px;
+}
+
+.vm-floater--combo .vm-floater__text {
+    font-size: calc(var(--px, 4px) * 3.5);
+}
+
+.vm-floater--effect .vm-floater__text {
+    font-size: calc(var(--px, 4px) * 3.5);
+}
+
+/* Damage drifts less (slams in place) */
+.vm-floater--damage {
+    animation:
+        fx-drift-short 1.6s cubic-bezier(0.0, 0.0, 0.2, 1) var(--fx-delay, 0ms) forwards,
+        fx-fade        1.6s cubic-bezier(0.0, 0.0, 0.2, 1) var(--fx-delay, 0ms) forwards;
+}
+
+.vm-floater--damage .vm-floater__inner {
+    animation:
+        fx-slam   0.4s cubic-bezier(0.34, 1.56, 0.64, 1) var(--fx-delay, 0ms) both,
+        fx-shake  0.5s ease-in-out calc(var(--fx-delay, 0ms) + 300ms) both;
+}
+
+@keyframes fx-drift-short {
+    0%   { transform: translateY(0); }
+    100% { transform: translateY(-24px); }
+}
+
+/* Slam: arrive from above */
+@keyframes fx-slam {
+    0%   { transform: scale(1.8) translateY(-20px); }
+    50%  { transform: scale(1.1) translateY(4px); }
+    70%  { transform: scale(0.95) translateY(-2px); }
+    100% { transform: scale(1) translateY(0); }
+}
+
+/* Shake: horizontal rattle */
+@keyframes fx-shake {
+    0%   { transform: translateX(0); }
+    20%  { transform: translateX(-4px); }
+    40%  { transform: translateX(3px); }
+    60%  { transform: translateX(-2px); }
+    80%  { transform: translateX(1px); }
+    100% { transform: translateX(0); }
+}

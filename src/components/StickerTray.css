@@ -1,0 +1,228 @@
+/* ── Sticker Tray (vertical left strip) ────────────────── */
+
+.sticker-tray {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 62px;
+    flex-shrink: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.sticker-tray__header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    padding: 2px 0;
+}
+
+.sticker-tray__title {
+    color: #ffd700;
+    font-family: monospace;
+    font-size: 8px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.sticker-tray__count {
+    color: #888;
+    font-family: monospace;
+    font-size: 8px;
+}
+
+.sticker-tray__slots {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #333 transparent;
+    padding: 0 2px;
+    flex: 1;
+    min-height: 0;
+}
+
+/* ── Individual sticker card ───────────────────────────── */
+.sticker {
+    position: relative;
+    flex: 0 0 auto;
+    width: 100%;
+    min-height: 48px;
+    padding: 3px;
+    background: #12121e;
+    border: 2px solid #2a2a3e;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.15s;
+    font-family: monospace;
+    box-sizing: border-box;
+}
+
+.sticker:hover {
+    transform: translateX(2px);
+    box-shadow: -3px 0 10px rgba(0, 0, 0, 0.4);
+}
+
+.sticker--selected {
+    transform: translateX(3px);
+    z-index: 10;
+}
+
+.sticker--empty {
+    border-style: dashed;
+    border-color: #333;
+    opacity: 0.4;
+    cursor: default;
+    justify-content: center;
+}
+
+.sticker--empty:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.sticker__empty-icon {
+    color: #555;
+    font-size: 18px;
+}
+
+.sticker__name {
+    color: #e0e0e0;
+    font-size: 7px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.2;
+    word-break: break-word;
+}
+
+.sticker__edition {
+    color: #ff80ab;
+    font-size: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.sticker__rarity {
+    font-size: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ── Edition visual effects ────────────────────────────── */
+.sticker--foil {
+    box-shadow: 0 0 6px rgba(200, 200, 255, 0.4);
+    background: linear-gradient(135deg, #12121e, #1a1a30, #12121e);
+}
+
+.sticker--holo {
+    box-shadow: 0 0 8px rgba(255, 100, 255, 0.3);
+    background: linear-gradient(135deg, #1a121e, #121a1e, #1e1a12);
+    animation: holo-shift 3s ease-in-out infinite;
+}
+
+@keyframes holo-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+.sticker--poly {
+    box-shadow: 0 0 10px rgba(255, 200, 100, 0.4);
+    background: linear-gradient(135deg, #1e1812, #121e18, #18121e);
+    animation: poly-shift 4s linear infinite;
+}
+
+@keyframes poly-shift {
+    0% { filter: hue-rotate(0deg); }
+    100% { filter: hue-rotate(360deg); }
+}
+
+.sticker--negative {
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.8), inset 0 0 8px rgba(100, 0, 255, 0.2);
+    background: #0a0a0f;
+    filter: brightness(0.8) contrast(1.3);
+}
+
+.sticker--golden {
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+    background: linear-gradient(135deg, #1e1a0a, #12121e, #1e1a0a);
+    border-color: #ffd700 !important;
+}
+
+/* ── Tooltip (shows on select — appears to the right) ── */
+.sticker__tooltip {
+    position: absolute;
+    top: 50%;
+    left: calc(100% + 6px);
+    transform: translateY(-50%);
+    width: 150px;
+    padding: 6px 8px;
+    background: #1a1a2eee;
+    border: 1px solid #ffd70066;
+    border-radius: 6px;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    pointer-events: auto;
+}
+
+.sticker__desc {
+    color: #d4c0ff;
+    font-size: 10px;
+    line-height: 1.3;
+    margin: 0;
+}
+
+.sticker__perk {
+    color: #39ff14;
+    font-size: 9px;
+    margin: 0;
+}
+
+.sticker__held {
+    color: #666;
+    font-size: 8px;
+    margin: 0;
+}
+
+.sticker__sell {
+    margin-top: 2px;
+    padding: 3px 8px;
+    background: #3a1010;
+    border: 1px solid #ff4040;
+    border-radius: 3px;
+    color: #ff6060;
+    font-family: monospace;
+    font-size: 9px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.sticker__sell:hover {
+    background: #5a1010;
+}
+
+.sticker__details {
+    margin-top: 2px;
+    padding: 3px 8px;
+    background: #101a30;
+    border: 1px solid #4fc3f7;
+    border-radius: 3px;
+    color: #4fc3f7;
+    font-family: monospace;
+    font-size: 9px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.sticker__details:hover {
+    background: #1a2a40;
+}

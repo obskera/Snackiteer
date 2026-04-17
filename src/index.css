@@ -1,3 +1,25 @@
+/* ── Animated geometric background ──────────────────────── */
+@property --bg-a {
+    syntax: '<angle>';
+    inherits: true;
+    initial-value: 0deg;
+}
+@property --bg-p {
+    syntax: '<percentage>';
+    inherits: true;
+    initial-value: 0%;
+}
+@property --bg-c1 {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: #000;
+}
+@property --bg-c2 {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: #000;
+}
+
 :root {
     font-family:
         Inter,
@@ -14,6 +36,9 @@
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+
+    /* Global pixel-art base unit — responsive */
+    --px: 4px;
 }
 
 a,
@@ -25,26 +50,76 @@ a:hover {
     color: #a5b4fc;
 }
 
+html, body {
+    height: 100dvh;
+    overflow: hidden;
+}
+
 body {
     margin: 0;
     min-width: 320px;
-    min-height: 100vh;
+    position: relative;
+
+    --bg-s: 80px;
+    --_bg-g: #0000, var(--bg-c1) 2deg calc(var(--bg-a) - 2deg), #0000 var(--bg-a);
     background:
-        radial-gradient(
-            circle at top,
-            rgba(79, 70, 229, 0.25),
-            transparent 36%
+        conic-gradient(from calc(-45deg  - var(--bg-a)/2) at top    var(--bg-p) left  var(--bg-p), var(--_bg-g)),
+        conic-gradient(from calc(-45deg  - var(--bg-a)/2) at top    var(--bg-p) left  var(--bg-p), var(--_bg-g)),
+        conic-gradient(from calc( 45deg  - var(--bg-a)/2) at top    var(--bg-p) right var(--bg-p), var(--_bg-g)),
+        conic-gradient(from calc( 45deg  - var(--bg-a)/2) at top    var(--bg-p) right var(--bg-p), var(--_bg-g)),
+        conic-gradient(from calc(-135deg - var(--bg-a)/2) at bottom var(--bg-p) left  var(--bg-p), var(--_bg-g)),
+        conic-gradient(from calc(-135deg - var(--bg-a)/2) at bottom var(--bg-p) left  var(--bg-p), var(--_bg-g)),
+        conic-gradient(from calc( 135deg - var(--bg-a)/2) at bottom var(--bg-p) right var(--bg-p), var(--_bg-g)),
+        conic-gradient(from calc( 135deg - var(--bg-a)/2) at bottom var(--bg-p) right var(--bg-p), var(--_bg-g))
+        var(--bg-c2);
+    background-size: calc(2 * var(--bg-s)) calc(2 * var(--bg-s));
+    animation: bg-morph 6s ease-in-out infinite alternate;
+}
+
+body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+        repeating-linear-gradient(
+            0deg,
+            transparent 0px,
+            transparent calc(var(--bg-s) * 2 - 1px),
+            #39ff1418 calc(var(--bg-s) * 2 - 1px),
+            #39ff1418 calc(var(--bg-s) * 2)
         ),
-        radial-gradient(
-            circle at 85% 15%,
-            rgba(59, 130, 246, 0.18),
-            transparent 30%
-        ),
-        #020617;
+        repeating-linear-gradient(
+            90deg,
+            transparent 0px,
+            transparent calc(var(--bg-s) * 2 - 1px),
+            #39ff1418 calc(var(--bg-s) * 2 - 1px),
+            #39ff1418 calc(var(--bg-s) * 2)
+        );
+}
+
+@keyframes bg-morph {
+    0% {
+        --bg-a: 135deg;
+        --bg-p: 20%;
+        --bg-c1: #0a3a0a;
+        --bg-c2: #020a04;
+    }
+    100% {
+        --bg-a: 90deg;
+        --bg-p: 25%;
+        --bg-c1: #062e10;
+        --bg-c2: #020a04;
+    }
 }
 
 #root {
     width: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
 }
 
 button {
@@ -55,4 +130,40 @@ button:focus,
 button:focus-visible {
     outline: 2px solid #93c5fd;
     outline-offset: 2px;
+}
+
+/* ── Responsive scaling ────────────────────────────────── */
+
+/* Small phones (≤ 380px, e.g. iPhone SE) */
+@media (max-width: 380px) {
+    :root { --px: 3px; }
+    .GameContainer { padding: 0.5rem 0.25rem; }
+}
+
+/* Medium phones (381–430px) */
+@media (min-width: 381px) and (max-width: 430px) {
+    :root { --px: 3.5px; }
+    .GameContainer { padding: 0.5rem 0.35rem; }
+}
+
+/* Tablets & landscape phones (431–768px) */
+@media (min-width: 431px) and (max-width: 768px) {
+    :root { --px: 4px; }
+}
+
+/* Desktop (769px+) */
+@media (min-width: 769px) {
+    :root { --px: 4px; }
+}
+
+/* Ensure touch targets are large enough on touch devices */
+@media (pointer: coarse) {
+    .vm-slot__btn {
+        min-width: 44px;
+        min-height: 44px;
+    }
+    .vm-catalogue__item {
+        min-width: 72px;
+        min-height: 44px;
+    }
 }

@@ -1,0 +1,497 @@
+/* ── Pixel-art vending machine ─────────────────────────── */
+/* Base unit = 4px. Everything snaps to multiples of 4.    */
+/* "Pixel" borders use box-shadow stacking, no sub-pixel.  */
+
+.vm-machine {
+    --neon: #39ff14;
+    --neon-dim: #39ff1444;
+    --neon-glow: #39ff1488;
+    --machine-bg: #0a0a12;
+    --machine-border: #1a1a2e;
+    --machine-panel: #12121e;
+    --slot-bg: #08080f;
+    --slot-border: #2a2a3e;
+    --slot-hover: #39ff1433;
+    --slot-locked: #0a0a0f;
+    --slot-locked-border: #16161e;
+    --text-primary: #e0e0e0;
+    --text-price: #39ff14;
+    --text-dim: #555;
+
+    image-rendering: pixelated;
+    font-family: monospace;
+    background: var(--machine-bg);
+    border: calc(var(--px) * 2) solid var(--machine-bg);
+    border-radius: calc(var(--px) * 3);
+    box-shadow: none;
+    padding: calc(var(--px) * 4);
+    display: flex;
+    flex-direction: column;
+    gap: calc(var(--px) * 3);
+    user-select: none;
+    align-items: stretch;
+}
+
+/* ── Kick shake ────────────────────────────────────────── */
+.vm-machine--shake {
+    animation: vm-shake 0.4s ease-out;
+}
+
+@keyframes vm-shake {
+    0%, 100% { transform: translateX(0); }
+    10% { transform: translateX(-6px) rotate(-0.5deg); }
+    20% { transform: translateX(5px) rotate(0.5deg); }
+    30% { transform: translateX(-4px) rotate(-0.3deg); }
+    40% { transform: translateX(3px) rotate(0.3deg); }
+    50% { transform: translateX(-2px); }
+    60% { transform: translateX(1px); }
+}
+
+/* ── Header strip (coin display) ───────────────────────── */
+
+.vm-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 var(--px);
+    margin-top: calc(var(--px) * 2);
+    gap: calc(var(--px) * 2);
+}
+
+.vm-coins {
+    color: #ffd700;
+    font-size: calc(var(--px) * 3);
+    text-shadow: 0 0 calc(var(--px) * 2) #ffd70066;
+    transition: transform 0.15s ease;
+}
+
+/* ── HP bar pulse on low HP ────────────────────────────── */
+.vm-hp-bar__fill {
+    transition: width 0.3s ease, background 0.3s ease;
+}
+
+/* ── Slot grid ─────────────────────────────────────────── */
+
+/* ── HP bar ────────────────────────────────────────────── */
+.vm-hp-bar {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--px) * 2);
+    padding: 0 var(--px);
+}
+
+.vm-hp-bar__label {
+    color: #39ff14;
+    font-size: calc(var(--px) * 3.5);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.vm-hp-bar__track {
+    flex: 1;
+    height: calc(var(--px) * 2);
+    background: var(--slot-bg);
+    border: 1px solid var(--slot-border);
+    border-radius: calc(var(--px));
+    overflow: hidden;
+}
+
+.vm-hp-bar__fill {
+    height: 100%;
+    border-radius: calc(var(--px));
+    transition: width 0.4s ease, background 0.3s ease;
+}
+
+.vm-hp-bar__repair {
+    all: unset;
+    font-family: monospace;
+    font-size: calc(var(--px) * 2.5);
+    color: var(--neon);
+    background: var(--machine-panel);
+    border: 1px solid var(--neon-dim);
+    border-radius: calc(var(--px) * 1.5);
+    padding: calc(var(--px) * 0.5) calc(var(--px) * 2);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.1s, border-color 0.1s;
+}
+
+.vm-hp-bar__repair:hover:not(:disabled) {
+    background: var(--slot-hover);
+    border-color: var(--neon);
+}
+
+.vm-hp-bar__repair:disabled {
+    color: var(--text-dim);
+    border-color: var(--slot-border);
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+/* ── Slot grid (continued) ─────────────────────────────── */
+.vm-grid-wrapper {
+    position: relative;
+    background: var(--machine-panel);
+    border: 3px solid #39ff14;
+    border-radius: calc(var(--px) * 3);
+    padding: calc(var(--px) * 2);
+    box-shadow:
+        0 8px 0 #39ff14,
+        0 12px 12px rgba(0, 0, 0, 0.4);
+}
+
+.vm-grid {
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    gap: calc(var(--px) * 2);
+    justify-content: center;
+    justify-items: center;
+}
+
+/* ── Individual slot ───────────────────────────────────── */
+.vm-slot {
+    position: relative;
+    width: calc(var(--px) * 16);
+    height: calc(var(--px) * 16);
+    background: var(--slot-bg);
+    border: calc(var(--px)) solid var(--slot-border);
+    border-radius: calc(var(--px) * 2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: box-shadow 0.12s ease, border-color 0.12s ease;
+}
+
+.vm-slot:hover:not(.vm-slot--locked) {
+    border-color: var(--neon);
+    box-shadow: 0 0 calc(var(--px) * 2) var(--neon-dim);
+}
+
+.vm-slot:active:not(.vm-slot--locked) {
+    box-shadow: inset 0 0 calc(var(--px) * 2) var(--neon-glow);
+}
+
+/* Locked slot */
+.vm-slot--locked {
+    background: var(--slot-locked);
+    border-color: var(--slot-locked-border);
+    cursor: not-allowed;
+}
+
+.vm-slot--locked::after {
+    content: "🔒";
+    font-size: calc(var(--px) * 3);
+    opacity: 0.3;
+    filter: grayscale(1);
+}
+
+.vm-slot--unlock-preview {
+    border-color: #39ff14;
+    box-shadow:
+        0 0 calc(var(--px) * 2) #39ff1488,
+        0 0 calc(var(--px) * 4) #39ff1444,
+        inset 0 0 calc(var(--px) * 2) #39ff1422;
+    animation: unlock-pulse 1s ease-in-out infinite alternate;
+}
+
+.vm-slot--unlock-preview::after {
+    content: "🔓";
+    opacity: 0.8;
+    filter: none;
+}
+
+@keyframes unlock-pulse {
+    0% { box-shadow: 0 0 calc(var(--px) * 2) #39ff1488, 0 0 calc(var(--px) * 4) #39ff1444, inset 0 0 calc(var(--px) * 2) #39ff1422; }
+    100% { box-shadow: 0 0 calc(var(--px) * 3) #39ff14aa, 0 0 calc(var(--px) * 6) #39ff1466, inset 0 0 calc(var(--px) * 3) #39ff1433; }
+}
+
+/* Featured slot (star glow) */
+.vm-slot--featured {
+    border-color: #ffd700;
+    box-shadow:
+        0 0 calc(var(--px) * 2) #ffd70066,
+        inset 0 0 calc(var(--px) * 2) #ffd70022;
+}
+
+.vm-slot--featured::before {
+    content: "★";
+    position: absolute;
+    top: calc(var(--px) * -1);
+    right: calc(var(--px) * -1);
+    font-size: calc(var(--px) * 2.5);
+    color: #ffd700;
+    text-shadow: 0 0 calc(var(--px)) #ffd700aa;
+    z-index: 1;
+}
+
+/* Empty unlocked slot */
+.vm-slot--empty {
+    border-style: dashed;
+}
+
+.vm-slot--empty::after {
+    content: "+";
+    color: var(--text-dim);
+    font-size: calc(var(--px) * 4);
+    line-height: 1;
+}
+
+/* Selected slot (price editing) */
+.vm-slot--selected {
+    border-color: var(--neon);
+    box-shadow: 0 0 calc(var(--px) * 3) var(--neon-glow);
+    z-index: 5;
+}
+
+/* Popout menu below selected slot */
+.vm-slot__popout {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: calc(var(--px) * 1.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(var(--px) * 2);
+    z-index: 10;
+    background: var(--machine-bg);
+    border: calc(var(--px) * 0.5) solid var(--neon);
+    border-radius: calc(var(--px) * 2);
+    padding: calc(var(--px) * 2) calc(var(--px) * 3);
+    box-shadow: 0 0 calc(var(--px) * 3) var(--neon-dim);
+    white-space: nowrap;
+}
+
+/* Arrow nub pointing up at the slot */
+.vm-slot__popout::before {
+    content: "";
+    position: absolute;
+    top: calc(var(--px) * -1.5);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: calc(var(--px) * 1.5) solid transparent;
+    border-right: calc(var(--px) * 1.5) solid transparent;
+    border-bottom: calc(var(--px) * 1.5) solid var(--neon);
+}
+
+/* Price row: − [price] + */
+.vm-slot__price-row {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--px) * 1.5);
+}
+
+.vm-slot__price-display {
+    color: var(--neon);
+    font-family: monospace;
+    font-size: calc(var(--px) * 4);
+    font-weight: bold;
+    min-width: calc(var(--px) * 8);
+    text-align: center;
+    text-shadow: 0 0 calc(var(--px) * 2) var(--neon-glow);
+}
+
+.vm-slot__btn {
+    all: unset;
+    width: calc(var(--px) * 6);
+    height: calc(var(--px) * 6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: monospace;
+    font-size: calc(var(--px) * 3.5);
+    font-weight: bold;
+    color: var(--text-primary);
+    background: var(--machine-panel);
+    border: calc(var(--px) * 0.5) solid var(--slot-border);
+    border-radius: calc(var(--px) * 1.5);
+    cursor: pointer;
+    transition: background 0.1s, border-color 0.1s, transform 0.08s;
+}
+
+.vm-slot__btn:hover {
+    border-color: var(--neon);
+    background: var(--slot-hover);
+    transform: scale(1.1);
+}
+
+.vm-slot__btn:active {
+    transform: scale(0.95);
+}
+
+.vm-slot__btn--plus {
+    color: var(--neon);
+}
+
+.vm-slot__btn--minus {
+    color: #ff6060;
+}
+
+.vm-slot__btn--trash {
+    color: #ff4040;
+    font-size: calc(var(--px) * 3);
+    width: calc(var(--px) * 6);
+    height: calc(var(--px) * 5);
+    border-color: #ff404044;
+}
+
+.vm-slot__btn--trash:hover {
+    border-color: #ff4040;
+    background: #ff404022;
+}
+
+/* Action row (feature + trash side by side) */
+.vm-slot__action-row {
+    display: flex;
+    gap: calc(var(--px) * 1.5);
+    justify-content: center;
+}
+
+.vm-slot__btn--feature {
+    color: #888;
+    font-size: calc(var(--px) * 3);
+    width: calc(var(--px) * 6);
+    height: calc(var(--px) * 5);
+    border-color: #ffd70044;
+}
+
+.vm-slot__btn--feature:hover {
+    border-color: #ffd700;
+    background: #ffd70022;
+    color: #ffd700;
+}
+
+.vm-slot__btn--feature-active {
+    color: #ffd700;
+    border-color: #ffd700;
+    background: #ffd70022;
+    text-shadow: 0 0 4px #ffd70088;
+}
+
+.vm-slot__effect-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(var(--px) * 0.5);
+    padding-top: calc(var(--px) * 0.5);
+}
+
+.vm-slot__effect-name {
+    color: #b388ff;
+    font-size: calc(var(--px) * 2.2);
+    font-style: italic;
+}
+
+.vm-slot__effect-desc {
+    color: #9e88cc;
+    font-size: calc(var(--px) * 1.8);
+    text-align: center;
+    line-height: 1.2;
+}
+
+/* ── Item inside a slot ────────────────────────────────── */
+.vm-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(var(--px));
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+}
+
+.vm-item__icon {
+    width: calc(var(--px) * 8);
+    height: calc(var(--px) * 8);
+    image-rendering: pixelated;
+    /* Placeholder colored box until real sprites arrive */
+    border: calc(var(--px) * 0.5) solid var(--slot-border);
+    border-radius: calc(var(--px) * 1);
+}
+
+.vm-item__name {
+    color: var(--text-primary);
+    font-size: calc(var(--px) * 2);
+    text-align: center;
+    line-height: 1.1;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vm-item__price {
+    color: var(--text-price);
+    font-size: calc(var(--px) * 2);
+    font-weight: bold;
+}
+
+.vm-item__effect {
+    position: absolute;
+    top: calc(var(--px) * 0.5);
+    right: calc(var(--px) * 0.5);
+    color: #b388ff;
+    font-size: calc(var(--px) * 2);
+    text-shadow: 0 0 4px #b388ff88;
+    cursor: help;
+}
+
+/* ── Rarity glow on items ──────────────────────────────── */
+.vm-item--uncommon .vm-item__icon {
+    box-shadow: 0 0 calc(var(--px)) #4fc3f7aa;
+}
+.vm-item--rare .vm-item__icon {
+    box-shadow: 0 0 calc(var(--px) * 2) #ce93d8aa;
+}
+.vm-item--legendary .vm-item__icon {
+    box-shadow: 0 0 calc(var(--px) * 3) #ffd700cc;
+    animation: vm-legendary-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes vm-legendary-pulse {
+    0%, 100% { box-shadow: 0 0 calc(var(--px) * 2) #ffd70088; }
+    50% { box-shadow: 0 0 calc(var(--px) * 4) #ffd700cc; }
+}
+
+/* ── Sell animation (item removed) ─────────────────────── */
+.vm-slot--sold {
+    animation: vm-sold-flash 0.3s ease-out;
+}
+
+@keyframes vm-sold-flash {
+    0% { background: var(--neon-glow); }
+    100% { background: var(--slot-bg); }
+}
+
+/* ── Round info bar ────────────────────────────────────── */
+.vm-info-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: calc(var(--px) * 2);
+    padding: var(--px) calc(var(--px) * 2);
+    background: var(--machine-panel);
+    border: calc(var(--px) * 0.5) solid var(--slot-border);
+    border-radius: calc(var(--px) * 1.5);
+    font-size: calc(var(--px) * 2.5);
+    color: var(--text-primary);
+}
+
+.vm-info-bar__rent {
+    color: #ff5555;
+}
+
+.vm-info-bar__target {
+    color: #ffb74d;
+    font-weight: 700;
+}
+
+.vm-info-bar__round {
+    color: var(--neon);
+}

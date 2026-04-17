@@ -1,0 +1,197 @@
+/* ── Sticker Pack Popover ───────────────────────────────── */
+
+.sp-popover {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 10, 18, 0.9);
+    backdrop-filter: blur(4px);
+}
+
+.sp-popover__card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 16px;
+    max-width: 320px;
+    width: 100%;
+    max-height: 90%;
+    overflow-y: auto;
+}
+
+.sp-popover__title {
+    color: #ffd700;
+    font-family: monospace;
+    font-size: 16px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin: 0;
+    text-shadow: 0 0 8px #ffd70066;
+}
+
+.sp-popover__hint {
+    color: #888;
+    font-family: monospace;
+    font-size: 11px;
+    margin: 0;
+}
+
+/* ── Step 1: sticker options ───────────────────────────── */
+.sp-popover__options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+}
+
+.sp-popover__option {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    padding: 10px 12px;
+    background: #12121e;
+    border: 2px solid #2a2a3e;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: monospace;
+    text-align: left;
+    transition: background 0.12s, transform 0.1s;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.sp-popover__option:hover {
+    background: #1a1a2e;
+    transform: translateX(3px);
+}
+
+.sp-popover__opt-name {
+    color: #e0e0e0;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.sp-popover__opt-rarity {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.sp-popover__opt-edition {
+    color: #ff80ab;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.sp-popover__opt-desc {
+    color: #d4c0ff;
+    font-size: 11px;
+    line-height: 1.4;
+    margin: 2px 0 0;
+}
+
+.sp-popover__opt-perk {
+    color: #39ff14;
+    font-size: 9px;
+}
+
+/* ── Step 2: slot selection ────────────────────────────── */
+.sp-popover__picked {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.sp-popover__picked-name {
+    font-family: monospace;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.sp-popover__picked-rarity {
+    color: #888;
+    font-family: monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+}
+
+.sp-popover__slots {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+}
+
+.sp-popover__slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 8px;
+    background: #12121e;
+    border: 2px solid #2a2a3e;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: monospace;
+    transition: background 0.12s, border-color 0.12s;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.sp-popover__slot:hover {
+    background: #1a1a2e;
+    border-color: #39ff14;
+}
+
+.sp-popover__slot--occupied {
+    border-color: #553;
+}
+
+.sp-popover__slot-name {
+    color: #e0e0e0;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.sp-popover__slot-replace {
+    color: #ff6060;
+    font-size: 9px;
+    text-transform: uppercase;
+}
+
+.sp-popover__slot-empty {
+    color: #555;
+    font-size: 11px;
+}
+
+.sp-popover__slot-num {
+    color: #666;
+    font-size: 9px;
+}
+
+/* ── Buttons ───────────────────────────────────────────── */
+.sp-popover__skip,
+.sp-popover__back {
+    padding: 6px 16px;
+    background: #163016;
+    border: 1px solid #39ff14;
+    border-radius: 4px;
+    color: #39ff14;
+    font-family: monospace;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.sp-popover__skip:hover,
+.sp-popover__back:hover {
+    background: #1e4a1e;
+}
