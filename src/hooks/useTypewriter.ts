@@ -23,10 +23,12 @@ export type TypewriterState = {
 /**
  * Drives a typewriter effect through an array of lines.
  * Change `runId` to restart from scratch. Pass 0 to idle.
+ * `skipLines` pre-reveals that many lines instantly (for restock continuation).
  */
 export function useTypewriter(
     lines: TypewriterLine[],
     runId: number,
+    skipLines = 0,
 ): TypewriterState {
     const [visibleLines, setVisibleLines] = useState<
         { text: string; className?: string }[]
@@ -35,8 +37,14 @@ export function useTypewriter(
     const linesRef = useRef(lines);
     linesRef.current = lines;
 
+    const cancelRef = useRef(false);
+
     const skip = useCallback(() => {
-        const all = linesRef.current.map((l) => ({ text: l.text, className: l.className }));
+        cancelRef.current = true;
+        const all = linesRef.current.map((l) => ({
+            text: l.text,
+            className: l.className,
+        }));
         setVisibleLines(all);
         setDone(true);
     }, []);
@@ -48,20 +56,27 @@ export function useTypewriter(
             return;
         }
 
-        setVisibleLines([]);
+        cancelRef.current = false;
+
+        // Pre-reveal skipped lines instantly
+        const preRevealed = lines.slice(0, skipLines).map((l) => ({
+            text: l.text,
+            className: l.className,
+        }));
+        setVisibleLines(preRevealed);
         setDone(false);
 
         let cancelled = false;
 
         const run = async () => {
-            for (let li = 0; li < lines.length; li++) {
-                if (cancelled) return;
+            for (let li = skipLines; li < lines.length; li++) {
+                if (cancelled || cancelRef.current) return;
                 const line = lines[li];
                 const charDelay = line.charDelay ?? 30;
                 const lingerMs = line.lingerMs ?? 800;
 
                 for (let ci = 0; ci <= line.text.length; ci++) {
-                    if (cancelled) return;
+                    if (cancelled || cancelRef.current) return;
                     const partial = line.text.slice(0, ci);
                     setVisibleLines((prev) => {
                         const next = prev.slice(0, li);
@@ -87,7 +102,7 @@ export function useTypewriter(
         return () => {
             cancelled = true;
         };
-    }, [runId]); // only runId — lines are captured at call time
+    }, [runId]); // only runId — lines/skipLines are captured at call time
 
     return { visibleLines, done, skip };
 }

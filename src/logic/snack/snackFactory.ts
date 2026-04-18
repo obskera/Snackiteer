@@ -2,9 +2,9 @@ import { generateId } from "@/logic/entity/Entity";
 import type {
     CatalogueOffering,
     CatalogueState,
+    ItemQuality,
     MachineSlot,
     MachineState,
-    RarityModifier,
     RoundLedger,
     RunState,
     SnackItemDef,
@@ -12,76 +12,42 @@ import type {
     UpgradeDef,
     UpgradeId,
 } from "./snackTypes";
-import { RARITY_WEIGHTS } from "./snackTypes";
-import { STARTER_ITEM_DEFS } from "./itemDefs";
-import { rollEffect } from "./itemEffects";
-
-// ── Rarity rolling ───────────────────────────────────────
-
-/** Pick a rarity using weighted random + catalogue bonus. */
-export const rollRarity = (rarityBonus: number): RarityModifier => {
-    const weights = { ...RARITY_WEIGHTS };
-    // Shift weight from common toward rarer tiers.
-    const shift = Math.min(rarityBonus, weights.common - 10);
-    weights.common -= shift;
-    weights.uncommon += shift * 0.5;
-    weights.rare += shift * 0.3;
-    weights.legendary += shift * 0.2;
-
-    const total = Object.values(weights).reduce((a, b) => a + b, 0);
-    let roll = Math.random() * total;
-
-    for (const [rarity, weight] of Object.entries(weights)) {
-        roll -= weight;
-        if (roll <= 0) return rarity as RarityModifier;
-    }
-    return "common";
-};
+import { QUALITY_PRICE_MULT } from "./snackTypes";
+import { STARTER_ITEM_DEFS, getItemDef } from "./itemDefs";
 
 // ── Item instance factory ────────────────────────────────
 
 export const createItemInstance = (
     def: SnackItemDef,
-    rarity: RarityModifier,
+    quality: ItemQuality,
 ): SnackItemInstance => {
-    const costMultiplier =
-        rarity === "uncommon"
-            ? 1.2
-            : rarity === "rare"
-              ? 1.5
-              : rarity === "legendary"
-                ? 2.0
-                : 1.0;
-
-    const effect = rollEffect(rarity);
-
+    const mult = QUALITY_PRICE_MULT[quality];
     return {
         instanceId: generateId(),
         defId: def.defId,
         name: def.name,
         tags: [...def.tags],
-        rarity,
-        cost: Math.round(def.baseCost * costMultiplier),
-        price: def.basePrice,
-        effect: undefined,
-        effectId: effect?.effectId,
-        effectName: effect?.name,
-        effectDesc: effect?.description,
+        quality,
+        cost: Math.round(def.baseCost * mult),
+        price: Math.round(def.basePrice * mult),
     };
 };
 
 // ── Catalogue generation ─────────────────────────────────
 
+/**
+ * Generates the fixed catalogue: every base item def × every unlocked quality tier.
+ * Players always see all items; higher tiers unlock via upgrades.
+ */
 export const generateCatalogueOffering = (
     catalogue: CatalogueState,
     availableDefs: SnackItemDef[] = STARTER_ITEM_DEFS,
 ): CatalogueOffering => {
     const items: SnackItemInstance[] = [];
-    for (let i = 0; i < catalogue.choiceCount; i++) {
-        const def =
-            availableDefs[Math.floor(Math.random() * availableDefs.length)];
-        const rarity = rollRarity(catalogue.rarityBonus);
-        items.push(createItemInstance(def, rarity));
+    for (const quality of catalogue.unlockedQualities) {
+        for (const def of availableDefs) {
+            items.push(createItemInstance(def, quality));
+        }
     }
     return { items };
 };
@@ -111,9 +77,7 @@ export const getSlot = (
     row: number,
     col: number,
 ): MachineSlot | undefined =>
-    machine.slots.find(
-        (s) => s.position.row === row && s.position.col === col,
-    );
+    machine.slots.find((s) => s.position.row === row && s.position.col === col);
 
 export const getAdjacentSlots = (
     machine: MachineState,
@@ -145,7 +109,9 @@ const STARTING_COINS = 20;
 const STARTING_RENT = 5;
 const MAX_MACHINE_HP = 100;
 
-export const createRunState = (mode: import("./snackTypes").GameMode = "retirement"): RunState => ({
+export const createRunState = (
+    mode: import("./snackTypes").GameMode = "retirement",
+): RunState => ({
     phase: "menu",
     gameMode: mode,
     round: 1,
@@ -155,9 +121,7 @@ export const createRunState = (mode: import("./snackTypes").GameMode = "retireme
     maxMachineHp: MAX_MACHINE_HP,
     machine: createMachineState(),
     catalogue: {
-        choiceCount: 5,
-        rarityBonus: 0,
-        effectThemeWeights: {},
+        unlockedQualities: ["common"],
     },
     roundEvent: null,
     lastSummary: null,
@@ -165,12 +129,39 @@ export const createRunState = (mode: import("./snackTypes").GameMode = "retireme
         "unlock-slot": 0,
         "better-catalogue": 0,
         "reinforce-machine": 0,
+        "feature-slot": 0,
     },
     rerollCount: 0,
     stickers: [],
     maxStickerSlots: 5,
     profitStreak: 0,
+    discoveredRecipes: [],
+    lockedStickerDefId: null,
 });
+
+// ── Price dial ───────────────────────────────────────────
+
+/** Max discount below default price. */
+export const PRICE_DIAL_MIN = -2;
+/** Max markup above default price. */
+export const PRICE_DIAL_MAX = 3;
+
+/**
+ * Default sell price for an item (before any player adjustment).
+ * Uses the item def's basePrice × quality multiplier.
+ */
+export const defaultPrice = (item: SnackItemInstance): number => {
+    const def = getItemDef(item.defId);
+    const base = def?.basePrice ?? item.cost + 2;
+    return Math.round(base * QUALITY_PRICE_MULT[item.quality]);
+};
+
+/**
+ * Price adjustment relative to the item's default.
+ * Positive = overpriced, negative = underpriced, 0 = default.
+ */
+export const priceAdjustment = (item: SnackItemInstance): number =>
+    item.price - defaultPrice(item);
 
 // ── Economy helpers ──────────────────────────────────────
 
@@ -211,9 +202,9 @@ export const UPGRADE_DEFS: UpgradeDef[] = [
     {
         id: "better-catalogue",
         name: "Better Catalogue",
-        description: "Rarer items appear in shop",
-        cost: (n) => 12 + n * 8,
-        maxPurchases: 5,
+        description: "Unlock higher quality items in the shop (Good → Fancy)",
+        cost: (n) => 15 + n * 10,
+        maxPurchases: 2,
     },
     {
         id: "reinforce-machine",
@@ -221,6 +212,13 @@ export const UPGRADE_DEFS: UpgradeDef[] = [
         description: "+20 max HP (heals too)",
         cost: (n) => 10 + n * 6,
         maxPurchases: 5,
+    },
+    {
+        id: "feature-slot",
+        name: "Featured Slot",
+        description: "Pick a slot to feature — customers love it",
+        cost: () => 10,
+        maxPurchases: 1,
     },
 ];
 
@@ -245,7 +243,13 @@ export const purchaseUpgrade = (draft: RunState, id: UpgradeId): boolean => {
             break;
         }
         case "better-catalogue": {
-            draft.catalogue.rarityBonus += 5;
+            const nextQuality =
+                draft.catalogue.unlockedQualities.length === 1
+                    ? "good"
+                    : "fancy";
+            if (!draft.catalogue.unlockedQualities.includes(nextQuality)) {
+                draft.catalogue.unlockedQualities.push(nextQuality);
+            }
             break;
         }
         case "reinforce-machine": {

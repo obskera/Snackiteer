@@ -1,6 +1,6 @@
 import type { SnackItemDef } from "./snackTypes";
 
-/** MVP starter catalogue — 6 base item definitions. */
+/** MVP starter catalogue — 6 base item definitions. Quality tiers are applied on top. */
 export const STARTER_ITEM_DEFS: SnackItemDef[] = [
     {
         defId: "soda-can",
@@ -31,16 +31,16 @@ export const STARTER_ITEM_DEFS: SnackItemDef[] = [
         basePrice: 7,
     },
     {
-        defId: "fancy-snack",
-        name: "Fancy Snack",
-        tags: ["premium", "spicy"],
-        baseCost: 6,
-        basePrice: 10,
+        defId: "gourmet-snack",
+        name: "Gourmet Snack",
+        tags: ["snack", "spicy"],
+        baseCost: 4,
+        basePrice: 7,
     },
     {
         defId: "mystery-box",
         name: "Mystery Box",
-        tags: ["snack", "sweet"],
+        tags: ["candy", "sweet"],
         baseCost: 3,
         basePrice: 6,
     },

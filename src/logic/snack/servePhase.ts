@@ -1,5 +1,7 @@
 import type { RunState, RoundSummary } from "./snackTypes";
 import { rentForRound } from "./snackFactory";
+import { evolveUnsoldItems } from "./itemEvolution";
+import type { EvolutionResult } from "./itemEvolution";
 
 /**
  * Resolve a serve phase: simulate customer purchases, pay rent,
@@ -34,6 +36,8 @@ export const resolveServePhase = (draft: RunState): RoundSummary => {
         itemsSold,
         rentPaid: rent,
         netProfit,
+        damageTaken: 0,
+        kicks: 0,
     };
 
     if (draft.coins < 0) {
@@ -52,8 +56,11 @@ import { ageStickers } from "./stickerEngine";
 
 /**
  * Transition from summary → next prep phase.
+ * Returns evolution results for narration.
  */
-export const advanceToNextRound = (draft: RunState): void => {
+export const advanceToNextRound = (draft: RunState): EvolutionResult => {
+    // Evolve unsold items before advancing
+    const evoResult = evolveUnsoldItems(draft.machine);
     draft.round += 1;
     draft.phase = "prep";
     draft.rerollCount = 0;
@@ -63,6 +70,10 @@ export const advanceToNextRound = (draft: RunState): void => {
     draft.roundEvent = rollRoundEvent(draft.round);
     // Apply HP regen if the event grants it
     if (draft.roundEvent?.hpRegen) {
-        draft.machineHp = Math.min(draft.maxMachineHp, draft.machineHp + draft.roundEvent.hpRegen);
+        draft.machineHp = Math.min(
+            draft.maxMachineHp,
+            draft.machineHp + draft.roundEvent.hpRegen,
+        );
     }
+    return evoResult;
 };

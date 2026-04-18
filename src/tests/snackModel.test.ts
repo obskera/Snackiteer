@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import {
-    rollRarity,
     createItemInstance,
     generateCatalogueOffering,
     createMachineState,
@@ -12,97 +11,67 @@ import {
     rentForRound,
 } from "@/logic/snack/snackFactory";
 import { STARTER_ITEM_DEFS } from "@/logic/snack/itemDefs";
-import type {
-    CatalogueState,
-    RarityModifier,
-} from "@/logic/snack/snackTypes";
-
-describe("rollRarity", () => {
-    it("returns a valid rarity modifier", () => {
-        const valid: RarityModifier[] = [
-            "common",
-            "uncommon",
-            "rare",
-            "legendary",
-        ];
-        for (let i = 0; i < 50; i++) {
-            expect(valid).toContain(rollRarity(0));
-        }
-    });
-
-    it("higher bonus shifts weight toward rarer tiers", () => {
-        const counts: Record<RarityModifier, number> = {
-            common: 0,
-            uncommon: 0,
-            rare: 0,
-            legendary: 0,
-        };
-        for (let i = 0; i < 1000; i++) {
-            counts[rollRarity(40)]++;
-        }
-        // With bonus 40, common should be less dominant
-        expect(counts.common).toBeLessThan(600);
-        expect(counts.uncommon + counts.rare + counts.legendary).toBeGreaterThan(
-            400,
-        );
-    });
-});
+import type { CatalogueState, ItemQuality } from "@/logic/snack/snackTypes";
+import { QUALITY_PRICE_MULT } from "@/logic/snack/snackTypes";
 
 describe("createItemInstance", () => {
     const sodaDef = STARTER_ITEM_DEFS[0]; // soda-can
 
-    it("creates a common instance with base cost", () => {
+    it("creates a common instance with base cost and price", () => {
         const item = createItemInstance(sodaDef, "common");
         expect(item.defId).toBe("soda-can");
         expect(item.name).toBe("Soda Can");
         expect(item.tags).toEqual(["drink", "sweet"]);
-        expect(item.rarity).toBe("common");
+        expect(item.quality).toBe("common");
         expect(item.cost).toBe(sodaDef.baseCost);
         expect(item.price).toBe(sodaDef.basePrice);
-        expect(item.effect).toBeUndefined();
         expect(item.instanceId).toBeTruthy();
     });
 
-    it("increases cost for higher rarities", () => {
-        const uncommon = createItemInstance(sodaDef, "uncommon");
-        const rare = createItemInstance(sodaDef, "rare");
-        const legendary = createItemInstance(sodaDef, "legendary");
-        expect(uncommon.cost).toBeGreaterThan(sodaDef.baseCost);
-        expect(rare.cost).toBeGreaterThan(uncommon.cost);
-        expect(legendary.cost).toBeGreaterThan(rare.cost);
+    it("scales cost and price for higher quality tiers", () => {
+        const good = createItemInstance(sodaDef, "good");
+        const fancy = createItemInstance(sodaDef, "fancy");
+        expect(good.cost).toBeGreaterThan(sodaDef.baseCost);
+        expect(good.price).toBeGreaterThan(sodaDef.basePrice);
+        expect(fancy.cost).toBeGreaterThan(good.cost);
+        expect(fancy.price).toBeGreaterThan(good.price);
+    });
+
+    it("applies quality multipliers correctly", () => {
+        const good = createItemInstance(sodaDef, "good");
+        expect(good.cost).toBe(
+            Math.round(sodaDef.baseCost * QUALITY_PRICE_MULT.good),
+        );
+        expect(good.price).toBe(
+            Math.round(sodaDef.basePrice * QUALITY_PRICE_MULT.good),
+        );
     });
 });
 
 describe("generateCatalogueOffering", () => {
-    it("generates the correct number of items", () => {
-        const catalogue: CatalogueState = {
-            choiceCount: 5,
-            rarityBonus: 0,
-            effectThemeWeights: {},
-        };
+    it("generates one item per def for common-only catalogue", () => {
+        const catalogue: CatalogueState = { unlockedQualities: ["common"] };
         const offering = generateCatalogueOffering(catalogue);
-        expect(offering.items).toHaveLength(5);
+        // 6 defs × 1 quality = 6 items
+        expect(offering.items).toHaveLength(STARTER_ITEM_DEFS.length);
     });
 
-    it("respects custom choice count", () => {
+    it("generates items for each unlocked quality tier", () => {
         const catalogue: CatalogueState = {
-            choiceCount: 8,
-            rarityBonus: 0,
-            effectThemeWeights: {},
+            unlockedQualities: ["common", "good"],
         };
         const offering = generateCatalogueOffering(catalogue);
-        expect(offering.items).toHaveLength(8);
+        // 6 defs × 2 qualities = 12 items
+        expect(offering.items).toHaveLength(STARTER_ITEM_DEFS.length * 2);
     });
 
     it("each item has a unique instanceId", () => {
         const catalogue: CatalogueState = {
-            choiceCount: 5,
-            rarityBonus: 0,
-            effectThemeWeights: {},
+            unlockedQualities: ["common", "good", "fancy"],
         };
         const offering = generateCatalogueOffering(catalogue);
         const ids = offering.items.map((i) => i.instanceId);
-        expect(new Set(ids).size).toBe(5);
+        expect(new Set(ids).size).toBe(offering.items.length);
     });
 });
 
@@ -190,7 +159,7 @@ describe("createRunState", () => {
         expect(run.coins).toBe(20);
         expect(run.rent).toBe(5);
         expect(run.machine.slots).toHaveLength(9);
-        expect(run.catalogue.choiceCount).toBe(5);
+        expect(run.catalogue.unlockedQualities).toEqual(["common"]);
         expect(run.roundEvent).toBeNull();
     });
 });

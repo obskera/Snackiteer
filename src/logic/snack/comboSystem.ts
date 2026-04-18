@@ -1,4 +1,4 @@
-import type { MachineSlot, MachineState } from "./snackTypes";
+import type { MachineState } from "./snackTypes";
 
 export type ComboResult = {
     /** Human-readable combo name. */
@@ -7,8 +7,6 @@ export type ComboResult = {
     bonus: number;
     /** Positions involved. */
     positions: { row: number; col: number }[];
-    /** Whether combo-boost effect enhanced this combo. */
-    boosted?: boolean;
 };
 
 type ComboRule = {
@@ -25,7 +23,6 @@ const COMBO_RULES: ComboRule[] = [
     { sharedTag: "drink", name: "Drink Duo", bonus: 3 },
     { sharedTag: "candy", name: "Candy Pair", bonus: 2 },
     { sharedTag: "snack", name: "Snack Synergy", bonus: 2 },
-    { sharedTag: "premium", name: "Luxury Line", bonus: 4 },
     { sharedTag: "energy", name: "Energy Surge", bonus: 3 },
     { sharedTag: "sour", name: "Sour Power", bonus: 2 },
     { sharedTag: "spicy", name: "Spice Chain", bonus: 3 },
@@ -46,7 +43,10 @@ export const detectCombos = (machine: MachineState): ComboResult[] => {
         const { row, col } = slot.position;
 
         // Check right and down neighbors only (avoids duplicates)
-        const neighbors: [number, number][] = [[row, col + 1], [row + 1, col]];
+        const neighbors: [number, number][] = [
+            [row, col + 1],
+            [row + 1, col],
+        ];
 
         for (const [nr, nc] of neighbors) {
             const neighbor = machine.slots.find(
@@ -66,19 +66,13 @@ export const detectCombos = (machine: MachineState): ComboResult[] => {
                 if (!rule) continue;
                 seenPairs.add(pairKey + tag);
 
-                // combo-boost: +2¢ if either item in the pair has it
-                const hasComboBoost =
-                    slot.item!.effectId === "combo-boost" ||
-                    neighbor.item!.effectId === "combo-boost";
-
                 results.push({
                     name: rule.name,
-                    bonus: rule.bonus + (hasComboBoost ? 2 : 0),
+                    bonus: rule.bonus,
                     positions: [
                         { row, col },
                         { row: nr, col: nc },
                     ],
-                    boosted: hasComboBoost,
                 });
             }
         }

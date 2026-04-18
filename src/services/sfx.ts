@@ -21,7 +21,7 @@ export type SfxId =
 const SFX_FILES: Record<SfxId, string> = {
     coin: "/sfx/coin.wav",
     combo: "/sfx/combo.wav",
-    damage: "/sfx/damage.wav",
+    damage: "/sfx/upgrade-fail.wav",
     "slot-place": "/sfx/slot-place.wav",
     "slot-select": "/sfx/slot-select.wav",
     "round-start": "/sfx/round-start.wav",
@@ -49,14 +49,21 @@ function loadSettings(): AudioSettings {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) return JSON.parse(raw) as AudioSettings;
-    } catch { /* ignore */ }
+    } catch {
+        /* ignore */
+    }
     return { sfxVol: 1.0, bgmVol: 0.55, muted: false };
 }
 
 function saveSettings(): void {
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ sfxVol: volume, bgmVol: bgmVolume, muted }));
-    } catch { /* ignore */ }
+        localStorage.setItem(
+            STORAGE_KEY,
+            JSON.stringify({ sfxVol: volume, bgmVol: bgmVolume, muted }),
+        );
+    } catch {
+        /* ignore */
+    }
 }
 
 const saved = loadSettings();
@@ -81,7 +88,13 @@ const bgmBuffers: AudioBuffer[] = [];
 let bgmSource: AudioBufferSourceNode | null = null;
 let bgmGain: GainNode | null = null;
 
-function getCtx(): AudioContext {
+function getCtx(): AudioContext | null {
+    if (!ctx) return null;
+    if (ctx.state === "suspended") ctx.resume();
+    return ctx;
+}
+
+function createCtx(): AudioContext {
     if (!ctx) {
         ctx = new AudioContext();
         masterGain = ctx.createGain();
@@ -94,7 +107,7 @@ function getCtx(): AudioContext {
 
 /** Preload all SFX buffers + BGM. Call once after first user interaction. */
 export async function initSfx(): Promise<void> {
-    const ac = getCtx();
+    const ac = createCtx();
     const entries = Object.entries(SFX_FILES) as [SfxId, string][];
     await Promise.all(
         entries.map(async ([id, src]) => {
@@ -104,7 +117,7 @@ export async function initSfx(): Promise<void> {
                 const audioBuf = await ac.decodeAudioData(arrayBuf);
                 buffers.set(id, audioBuf);
             } catch {
-                console.warn(`[sfx] failed to load ${id} from ${src}`);
+                // missing sfx asset — silent fail
             }
         }),
     );
@@ -118,7 +131,7 @@ export async function initSfx(): Promise<void> {
                 const audioBuf = await ac.decodeAudioData(arrayBuf);
                 bgmBuffers.push(audioBuf);
             } catch {
-                console.warn(`[sfx] failed to load bgm: ${src}`);
+                // missing bgm asset — silent fail
             }
         }),
     );
@@ -128,6 +141,7 @@ export async function initSfx(): Promise<void> {
 export function playSfx(id: SfxId, opts?: { volume?: number }): void {
     if (muted) return;
     const ac = getCtx();
+    if (!ac) return;
     const buf = buffers.get(id);
     if (!buf) return;
 
@@ -155,6 +169,7 @@ export function playTextBlip(): void {
     if (muted) return;
     if (blipCounter++ % 2 !== 0) return;
     const ac = getCtx();
+    if (!ac) return;
     const buf = buffers.get("scrolling-text");
     if (!buf) return;
 
@@ -184,7 +199,7 @@ export function setSfxMuted(m: boolean): void {
     } else {
         // Resume context (browser may have suspended it while silent)
         const ac = getCtx();
-        if (ac.state === "suspended") ac.resume();
+        if (ac && ac.state === "suspended") ac.resume();
         if (masterGain) masterGain.gain.value = volume;
     }
     saveSettings();
@@ -202,7 +217,7 @@ export function startBgm(): void {
 
 function playRandomBgm(): void {
     if (muted || bgmBuffers.length === 0) return;
-    const ac = getCtx();
+    const ac = createCtx();
     const buf = bgmBuffers[Math.floor(Math.random() * bgmBuffers.length)];
 
     bgmGain = ac.createGain();
@@ -211,18 +226,14 @@ function playRandomBgm(): void {
 
     bgmSource = ac.createBufferSource();
     bgmSource.buffer = buf;
-    bgmSource.loop = false;
+    bgmSource.loop = true;
     bgmSource.connect(bgmGain);
-    bgmSource.onended = () => {
-        bgmSource = null;
-        if (!muted) playRandomBgm();
-    };
     bgmSource.start();
 }
 
 export function stopBgm(): void {
     if (bgmSource) {
-        bgmSource.onended = null;   // prevent re-trigger from onended
+        bgmSource.onended = null; // prevent re-trigger from onended
         bgmSource.stop();
         bgmSource.disconnect();
         bgmSource = null;

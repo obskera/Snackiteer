@@ -1,12 +1,8 @@
-export type { 
+export type {
     ItemTypeTag,
     ItemVibeTag,
-    ItemEffectTag,
     ItemTag,
-    EffectTrigger,
-    ItemEffect,
-    EffectContext,
-    RarityModifier,
+    ItemQuality,
     SnackItemDef,
     SnackItemInstance,
     SlotPosition,
@@ -27,12 +23,17 @@ export type {
     GameMode,
 } from "./snackTypes";
 
-export { RARITY_WEIGHTS, SPENDING_TYPE_PRICE_TOLERANCE, RETIREMENT_GOAL, profiteerTarget, MAX_COINS } from "./snackTypes";
+export {
+    QUALITY_PRICE_MULT,
+    SPENDING_TYPE_PRICE_TOLERANCE,
+    RETIREMENT_GOAL,
+    profiteerTarget,
+    MAX_COINS,
+} from "./snackTypes";
 
 export { STARTER_ITEM_DEFS, getItemDef } from "./itemDefs";
 
 export {
-    rollRarity,
     createItemInstance,
     generateCatalogueOffering,
     createMachineState,
@@ -46,12 +47,31 @@ export {
     UPGRADE_DEFS,
     getUpgradeDef,
     purchaseUpgrade,
+    PRICE_DIAL_MIN,
+    PRICE_DIAL_MAX,
+    defaultPrice,
+    priceAdjustment,
 } from "./snackFactory";
 
 export { resolveServePhase, advanceToNextRound } from "./servePhase";
 
-export type { SimpleEffect } from "./itemEffects";
-export { rollEffect, getEffectDef, effectPriceBonus, effectSellBonus, effectDamageReduction, effectKickChanceMult } from "./itemEffects";
+// ── Item evolution ────────────────────────────────────────
+export type { EvolutionResult } from "./itemEvolution";
+export {
+    evolveUnsoldItems,
+    MAX_EVO_LEVEL,
+    ROTTEN_LEVEL,
+    EVO_NARRATION,
+    AGE_DISPLAY,
+} from "./itemEvolution";
+
+// ── Discovery recipes ─────────────────────────────────────
+export type { RecipeDef } from "./discoveryRecipes";
+export {
+    RECIPE_DEFS,
+    detectActiveRecipes,
+    findNewRecipes,
+} from "./discoveryRecipes";
 
 // ── Sticker system ────────────────────────────────────────
 export type {
@@ -81,6 +101,9 @@ export {
     rollStickerEdition,
     openBlindBox,
     rollStickerPack,
+    rollStickerShop,
+    STICKER_BUY_COSTS,
+    REROLL_BASE_COST,
     stickerSellValue,
     stickerSlotsUsed,
     canAddSticker,

@@ -1,56 +1,21 @@
-import { type UUID, generateId } from "@/logic/entity/Entity";
+import type { UUID } from "@/logic/entity/Entity";
 
 // ── Tag axes ──────────────────────────────────────────────
-/** Axis 1 – what the item IS */
-export type ItemTypeTag = "drink" | "snack" | "candy" | "premium";
+/** Axis 1 – what the item IS (category) */
+export type ItemTypeTag = "drink" | "snack" | "candy";
 
-/** Axis 2 – how it FEELS */
+/** Axis 2 – how it FEELS (vibe) */
 export type ItemVibeTag = "sweet" | "salty" | "sour" | "spicy" | "refreshing";
 
-/** Axis 3 – special power (rare items only) */
-export type ItemEffectTag =
-    | "energy"
-    | "comfort"
-    | "mystery"
-    | "hype"
-    | "luxury";
+export type ItemTag = ItemTypeTag | ItemVibeTag;
 
-export type ItemTag = ItemTypeTag | ItemVibeTag | ItemEffectTag;
+// ── Quality (per-instance tier) ───────────────────────────
+export type ItemQuality = "common" | "good" | "fancy";
 
-// ── Effect triggers ───────────────────────────────────────
-export type EffectTrigger =
-    | "on-stock"
-    | "round-start"
-    | "on-sale"
-    | "on-adjacent-sale"
-    | "round-end";
-
-export type ItemEffect = {
-    id: UUID;
-    name: string;
-    description: string;
-    trigger: EffectTrigger;
-    /** Resolved once per trigger event (no re-entrant chains). */
-    apply: (ctx: EffectContext) => void;
-};
-
-export type EffectContext = {
-    /** The slot position of the item that owns this effect. */
-    sourceSlot: SlotPosition;
-    /** Current machine state (read-only snapshot for resolution). */
-    machine: MachineState;
-    /** Mutable round ledger — effects write bonuses here. */
-    ledger: RoundLedger;
-};
-
-// ── Rarity (per-instance modifier) ───────────────────────
-export type RarityModifier = "common" | "uncommon" | "rare" | "legendary";
-
-export const RARITY_WEIGHTS: Record<RarityModifier, number> = {
-    common: 70,
-    uncommon: 20,
-    rare: 8,
-    legendary: 2,
+export const QUALITY_PRICE_MULT: Record<ItemQuality, number> = {
+    common: 1.0,
+    good: 1.5,
+    fancy: 2.5,
 };
 
 // ── Item definition (template in catalogue) ──────────────
@@ -58,7 +23,7 @@ export type SnackItemDef = {
     /** Unique identifier for this item TYPE (e.g. "soda-can"). */
     defId: string;
     name: string;
-    /** 1-2 base tags (type + vibe). All items have these. */
+    /** Base tags: category + vibe. */
     tags: [ItemTypeTag, ItemVibeTag];
     baseCost: number;
     basePrice: number;
@@ -70,20 +35,16 @@ export type SnackItemInstance = {
     defId: string;
     name: string;
     tags: ItemTag[];
-    /** Per-instance rarity roll. */
-    rarity: RarityModifier;
+    /** Quality tier for this instance. */
+    quality: ItemQuality;
     /** Cost the player paid to stock this item. */
     cost: number;
-    /** Player-set sell price (defaults to basePrice, adjustable in prep). */
+    /** Player-set sell price (defaults to scaled basePrice, adjustable in prep). */
     price: number;
-    /** Effect granted by rarity/roll. undefined for common items. */
-    effect?: ItemEffect;
-    /** Simple effect ID for jam build. */
-    effectId?: string;
-    /** Display name of the effect. */
-    effectName?: string;
-    /** Display description of the effect. */
-    effectDesc?: string;
+    /** Evolution level: 0 = base, 1 = Vintage, 2 = Legendary. Unsold items evolve between rounds. */
+    evoLevel?: number;
+    /** Original base name before evolution prefix was applied. */
+    baseName?: string;
 };
 
 // ── Slot & machine ───────────────────────────────────────
@@ -147,12 +108,8 @@ export type Customer = {
 
 // ── Catalogue & upgrades ─────────────────────────────────
 export type CatalogueState = {
-    /** How many items the catalogue shows per round. */
-    choiceCount: number;
-    /** Bonus weight toward rarer items (0 = default odds). */
-    rarityBonus: number;
-    /** Weighted effect themes (increase odds of specific triggers). */
-    effectThemeWeights: Partial<Record<EffectTrigger, number>>;
+    /** Quality tiers currently available for purchase in the catalogue. */
+    unlockedQualities: ItemQuality[];
 };
 
 export type CatalogueOffering = {
@@ -160,7 +117,11 @@ export type CatalogueOffering = {
 };
 
 // ── Upgrades ─────────────────────────────────────────────
-export type UpgradeId = "unlock-slot" | "better-catalogue" | "reinforce-machine";
+export type UpgradeId =
+    | "unlock-slot"
+    | "better-catalogue"
+    | "reinforce-machine"
+    | "feature-slot";
 
 export type UpgradeDef = {
     id: UpgradeId;
@@ -202,13 +163,20 @@ export const RETIREMENT_GOAL = 300;
 
 /** Profiteer: net-profit target for a given round. */
 export const profiteerTarget = (round: number): number =>
-    Math.floor(8 + round * 3 + (round ** 1.3));
+    Math.floor(8 + round * 3 + round ** 1.3);
 
 /** Max coins (prevent overflow). */
 export const MAX_COINS = 99_999;
 
 // ── Game run state ───────────────────────────────────────
-export type GamePhase = "menu" | "prep" | "serve" | "summary" | "game-over" | "win";
+export type GamePhase =
+    | "menu"
+    | "prep"
+    | "serve"
+    | "summary"
+    | "sticker-shop"
+    | "game-over"
+    | "win";
 
 export type RoundSummary = {
     totalSales: number;
@@ -220,6 +188,12 @@ export type RoundSummary = {
     damageTaken: number;
     /** Number of kicks this round. */
     kicks: number;
+    /** Items that evolved this round. */
+    evolved: { name: string; level: number }[];
+    /** Items that went rotten this round. */
+    rotted: { name: string }[];
+    /** New recipes discovered this round. */
+    newRecipes: { name: string; bonus: number }[];
 };
 
 export type RunState = {
@@ -246,4 +220,8 @@ export type RunState = {
     maxStickerSlots: number;
     /** Consecutive profitable rounds (for scaling stickers). */
     profitStreak: number;
+    /** IDs of discovered recipes (persisted across rounds). */
+    discoveredRecipes: string[];
+    /** Locked sticker def ID — guaranteed to appear in next sticker shop. Max 1. */
+    lockedStickerDefId: string | null;
 };

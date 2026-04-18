@@ -1,4 +1,14 @@
-import type { MachineSlot, SlotPosition, SnackItemInstance } from "@/logic/snack";
+import type {
+    MachineSlot,
+    SlotPosition,
+    SnackItemInstance,
+} from "@/logic/snack";
+import {
+    AGE_DISPLAY,
+    defaultPrice,
+    PRICE_DIAL_MIN,
+    PRICE_DIAL_MAX,
+} from "@/logic/snack";
 import type { Floater } from "@/hooks/useFloatingFX";
 import type { ReactNode } from "react";
 import { FloatingFX } from "./FloatingFX";
@@ -10,10 +20,11 @@ type SlotProps = {
     slot: MachineSlot;
     selected: boolean;
     unlockPreview?: boolean;
+    serveMatch?: boolean;
+    comboGlow?: boolean;
     onSlotClick: (slot: MachineSlot) => void;
-    onPriceChange?: (delta: number) => void;
     onTrash?: () => void;
-    onFeature?: () => void;
+    onPriceAdjust?: (delta: number) => void;
 };
 
 /** Placeholder color per item type tag until real sprites arrive. */
@@ -21,85 +32,138 @@ const ITEM_TYPE_COLORS: Record<string, string> = {
     drink: "#4fc3f7",
     snack: "#ffb74d",
     candy: "#f06292",
-    premium: "#ffd700",
+};
+
+/** Overlay tint per quality tier. */
+const QUALITY_OVERLAY: Record<string, string> = {
+    common: "",
+    good: "brightness(1.25) saturate(1.3)",
+    fancy: "brightness(1.5) saturate(1.5) sepia(0.2)",
 };
 
 const itemColor = (item: SnackItemInstance): string =>
     ITEM_TYPE_COLORS[item.tags[0]] ?? "#888";
 
 function SlotItem({ item }: { item: SnackItemInstance }) {
+    const age = AGE_DISPLAY[item.evoLevel ?? 0] ?? AGE_DISPLAY[0];
     return (
-        <div className={`vm-item vm-item--${item.rarity}`}>
+        <div className={`vm-item vm-item--${item.quality}`}>
             <div
                 className="vm-item__icon"
-                style={{ background: itemColor(item) }}
-                title={item.tags.join(", ")}
+                style={{
+                    background: itemColor(item),
+                    filter: QUALITY_OVERLAY[item.quality],
+                }}
+                title={`${item.tags.join(", ")} • ${item.quality}`}
             />
+            <span className="vm-item__age-badge" style={{ color: age.color }}>
+                {age.letter}
+            </span>
             <span className="vm-item__name">{item.name}</span>
             <span className="vm-item__price">{item.price}¢</span>
-            {item.effectName && (
-                <span className="vm-item__effect" title={`${item.effectName}: ${item.effectDesc}`}>✦</span>
-            )}
         </div>
     );
 }
 
-function Slot({ slot, selected, unlockPreview, onSlotClick, onPriceChange, onTrash, onFeature }: SlotProps) {
+function Slot({
+    slot,
+    selected,
+    unlockPreview,
+    onSlotClick,
+    onTrash,
+    onPriceAdjust,
+}: SlotProps) {
     if (!slot.unlocked) {
-        return <div className={`vm-slot vm-slot--locked${unlockPreview ? " vm-slot--unlock-preview" : ""}`} />;
+        return (
+            <div
+                className={`vm-slot vm-slot--locked${unlockPreview ? " vm-slot--unlock-preview" : ""}`}
+            />
+        );
     }
 
     const stateClass = slot.item ? "" : "vm-slot--empty";
-    const featuredClass = slot.featured ? "vm-slot--featured" : "";
     const selectedClass = selected ? "vm-slot--selected" : "";
+    const featuredClass = slot.featured ? "vm-slot--featured" : "";
 
     return (
         <div
-            className={`vm-slot ${stateClass} ${featuredClass} ${selectedClass}`}
+            className={`vm-slot ${stateClass} ${selectedClass} ${featuredClass}`}
             onClick={() => onSlotClick(slot)}
         >
+            {slot.featured && <div className="vm-slot__featured-particles" />}
             {slot.item && <SlotItem item={slot.item} />}
-            {selected && slot.item && onPriceChange && onTrash && onFeature && (
-                <div className="vm-slot__popout" onClick={(e) => e.stopPropagation()}>
-                    <div className="vm-slot__price-row">
-                        <button
-                            type="button"
-                            className="vm-slot__btn vm-slot__btn--minus"
-                            onClick={() => onPriceChange(-1)}
-                        >
-                            −
-                        </button>
-                        <span className="vm-slot__price-display">{slot.item.price}¢</span>
-                        <button
-                            type="button"
-                            className="vm-slot__btn vm-slot__btn--plus"
-                            onClick={() => onPriceChange(+1)}
-                        >
-                            +
-                        </button>
-                    </div>
+            {selected && slot.item && onTrash && (
+                <div
+                    className="vm-slot__popout"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {(() => {
+                        const age =
+                            AGE_DISPLAY[slot.item!.evoLevel ?? 0] ??
+                            AGE_DISPLAY[0];
+                        return (
+                            <div
+                                className="vm-slot__age-info"
+                                style={{ color: age.color }}
+                            >
+                                <span className="vm-slot__age-label">
+                                    {age.label}
+                                </span>
+                                <span className="vm-slot__age-desc">
+                                    {age.description}
+                                </span>
+                            </div>
+                        );
+                    })()}
+                    {onPriceAdjust &&
+                        slot.item &&
+                        (() => {
+                            const base = defaultPrice(slot.item!);
+                            const adj = slot.item!.price - base;
+                            const canDown =
+                                adj > PRICE_DIAL_MIN && slot.item!.price > 1;
+                            const canUp = adj < PRICE_DIAL_MAX;
+                            return (
+                                <div className="vm-slot__price-dial">
+                                    <button
+                                        type="button"
+                                        className="vm-slot__btn vm-slot__btn--price"
+                                        disabled={!canDown}
+                                        onClick={() => onPriceAdjust(-1)}
+                                    >
+                                        -
+                                    </button>
+                                    <span
+                                        className={`vm-slot__price-label${adj > 0 ? " vm-slot__price-label--up" : ""}${adj < 0 ? " vm-slot__price-label--down" : ""}`}
+                                    >
+                                        {slot.item!.price}c
+                                        {adj !== 0 && (
+                                            <span className="vm-slot__price-adj">
+                                                ({adj > 0 ? "+" : ""}
+                                                {adj})
+                                            </span>
+                                        )}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className="vm-slot__btn vm-slot__btn--price"
+                                        disabled={!canUp}
+                                        onClick={() => onPriceAdjust(+1)}
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                            );
+                        })()}
                     <div className="vm-slot__action-row">
-                        <button
-                            type="button"
-                            className={`vm-slot__btn vm-slot__btn--feature ${slot.featured ? "vm-slot__btn--feature-active" : ""}`}
-                            onClick={onFeature}
-                        >
-                            {slot.featured ? "★" : "☆"}
-                        </button>
                         <button
                             type="button"
                             className="vm-slot__btn vm-slot__btn--trash"
                             onClick={onTrash}
                         >
-                            🗑
+                            X
                         </button>
                     </div>
-                    {slot.item.effectName && (
-                        <div className="vm-slot__effect-row">
-                            <span className="vm-slot__effect-name">✦ {slot.item.effectName}</span>
-                            <span className="vm-slot__effect-desc">{slot.item.effectDesc}</span>
-                        </div>
-                    )}
                 </div>
             )}
         </div>
@@ -122,10 +186,13 @@ export type VendingMachineProps = {
     floaters?: Floater[];
     shaking?: boolean;
     headerExtra?: ReactNode;
+    /** Slot indices that match the current customer's mood (serve phase glow). */
+    serveMatchSlots?: Set<number>;
+    /** Slot indices that are part of an active combo (prep phase glow). */
+    comboSlots?: Set<number>;
     onSlotClick: (slot: MachineSlot) => void;
-    onPriceChange?: (row: number, col: number, delta: number) => void;
     onTrash?: (row: number, col: number) => void;
-    onFeature?: (row: number, col: number) => void;
+    onPriceAdjust?: (row: number, col: number, delta: number) => void;
     onRepair?: () => void;
 };
 
@@ -143,14 +210,16 @@ export function VendingMachine({
     floaters,
     shaking,
     headerExtra,
+    serveMatchSlots,
+    comboSlots,
     onSlotClick,
-    onPriceChange,
     onTrash,
-    onFeature,
+    onPriceAdjust,
     onRepair,
 }: VendingMachineProps) {
     const hpPct = Math.round((machineHp / maxMachineHp) * 100);
-    const hpColor = hpPct > 50 ? "var(--neon)" : hpPct > 25 ? "#ffb74d" : "#ff4040";
+    const hpColor =
+        hpPct > 50 ? "var(--neon)" : hpPct > 25 ? "#ffb74d" : "#ff4040";
     const repairCost = (maxMachineHp - machineHp) * 2;
     const needsRepair = machineHp < maxMachineHp;
 
@@ -180,7 +249,7 @@ export function VendingMachine({
                         disabled={coins < repairCost}
                         title={`Repair to full: ${repairCost}¢`}
                     >
-                        🔧 {repairCost}¢
+                        [R] {repairCost}¢
                     </button>
                 )}
             </div>
@@ -193,7 +262,10 @@ export function VendingMachine({
                             selectedSlotPos != null &&
                             selectedSlotPos.row === row &&
                             selectedSlotPos.col === col;
-                        const isNextLocked = highlightNextLocked && !slot.unlocked &&
+                        const flatIdx = row * 3 + col;
+                        const isNextLocked =
+                            highlightNextLocked &&
+                            !slot.unlocked &&
                             idx === slots.findIndex((s) => !s.unlocked);
                         return (
                             <Slot
@@ -201,20 +273,18 @@ export function VendingMachine({
                                 slot={slot}
                                 selected={isSelected}
                                 unlockPreview={isNextLocked}
+                                serveMatch={serveMatchSlots?.has(flatIdx)}
+                                comboGlow={comboSlots?.has(flatIdx)}
                                 onSlotClick={onSlotClick}
-                                onPriceChange={
-                                    isSelected && onPriceChange
-                                        ? (d) => onPriceChange(row, col, d)
-                                        : undefined
-                                }
                                 onTrash={
                                     isSelected && onTrash
                                         ? () => onTrash(row, col)
                                         : undefined
                                 }
-                                onFeature={
-                                    isSelected && onFeature
-                                        ? () => onFeature(row, col)
+                                onPriceAdjust={
+                                    isSelected && onPriceAdjust
+                                        ? (delta: number) =>
+                                              onPriceAdjust(row, col, delta)
                                         : undefined
                                 }
                             />
@@ -227,7 +297,9 @@ export function VendingMachine({
             <div className="vm-info-bar">
                 <span className="vm-info-bar__round">Round {round}</span>
                 {profitTarget != null && (
-                    <span className="vm-info-bar__target">Profit Target: +{profitTarget}¢</span>
+                    <span className="vm-info-bar__target">
+                        Profit Target: +{profitTarget}¢
+                    </span>
                 )}
                 {gameMode !== "profiteer" && (
                     <span className="vm-info-bar__rent">Rent: {rent}¢</span>

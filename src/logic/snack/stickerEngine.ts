@@ -45,7 +45,7 @@ export const openBlindBox = (): StickerInstance => {
     const edition = rollStickerEdition();
 
     // Pick a random def matching the rolled rarity
-    const pool = STICKER_DEFS.filter(d => d.rarity === rarity);
+    const pool = STICKER_DEFS.filter((d) => d.rarity === rarity);
     const def = pool[Math.floor(Math.random() * pool.length)];
 
     return {
@@ -69,8 +69,11 @@ export const rollStickerPack = (): StickerInstance[] => {
         const rarity = rollStickerRarity();
         const edition = rollStickerEdition();
         // Avoid duplicates
-        let pool = STICKER_DEFS.filter(d => d.rarity === rarity && !usedDefIds.has(d.id));
-        if (pool.length === 0) pool = STICKER_DEFS.filter(d => d.rarity === rarity);
+        let pool = STICKER_DEFS.filter(
+            (d) => d.rarity === rarity && !usedDefIds.has(d.id),
+        );
+        if (pool.length === 0)
+            pool = STICKER_DEFS.filter((d) => d.rarity === rarity);
         const def = pool[Math.floor(Math.random() * pool.length)];
         usedDefIds.add(def.id);
         results.push({
@@ -88,35 +91,108 @@ export const rollStickerPack = (): StickerInstance[] => {
 };
 
 // ── Sell value calculation ────────────────────────────────
-export const stickerSellValue = (sticker: StickerInstance, stickers: StickerInstance[]): number => {
+export const stickerSellValue = (
+    sticker: StickerInstance,
+    stickers: StickerInstance[],
+): number => {
     const editionBonus = EDITION_BONUSES[sticker.edition].sellBonus;
-    const growthBonus = sticker.defId === "growth-fund" ? sticker.roundsHeld * 2 : 0;
-    const junkyardBonus = stickers.some(s => s.defId === "junkyard") ? 8 : 0;
+    const growthBonus =
+        sticker.defId === "growth-fund" ? sticker.roundsHeld * 2 : 0;
+    const junkyardBonus = stickers.some((s) => s.defId === "junkyard") ? 8 : 0;
     return sticker.baseSellValue + editionBonus + growthBonus + junkyardBonus;
+};
+
+// ── Sticker buy costs (by rarity) ─────────────────────────
+export const STICKER_BUY_COSTS: Record<StickerRarity, number> = {
+    common: 4,
+    uncommon: 7,
+    rare: 12,
+    legendary: 18,
+};
+
+/** Base reroll cost. Actual = BASE * (rerollCount + 1). */
+export const REROLL_BASE_COST = 2;
+
+/** Roll 3 sticker options for the end-of-round shop. lockedDefId is guaranteed one slot. */
+export const rollStickerShop = (
+    lockedDefId: string | null,
+): StickerInstance[] => {
+    const results: StickerInstance[] = [];
+    const usedDefIds = new Set<string>();
+    const SHOP_SIZE = 3;
+
+    // If there's a locked sticker, guarantee it in position 0
+    if (lockedDefId) {
+        const def = STICKER_DEFS.find((d) => d.id === lockedDefId);
+        if (def) {
+            const edition = rollStickerEdition();
+            results.push({
+                instanceId: generateId(),
+                defId: def.id,
+                name: def.name,
+                description: def.description,
+                rarity: def.rarity,
+                edition,
+                baseSellValue: STICKER_SELL_VALUES[def.rarity],
+                roundsHeld: 0,
+            });
+            usedDefIds.add(def.id);
+        }
+    }
+
+    // Fill remaining slots
+    while (results.length < SHOP_SIZE) {
+        const rarity = rollStickerRarity();
+        const edition = rollStickerEdition();
+        let pool = STICKER_DEFS.filter(
+            (d) => d.rarity === rarity && !usedDefIds.has(d.id),
+        );
+        if (pool.length === 0)
+            pool = STICKER_DEFS.filter((d) => d.rarity === rarity);
+        const def = pool[Math.floor(Math.random() * pool.length)];
+        usedDefIds.add(def.id);
+        results.push({
+            instanceId: generateId(),
+            defId: def.id,
+            name: def.name,
+            description: def.description,
+            rarity: def.rarity,
+            edition,
+            baseSellValue: STICKER_SELL_VALUES[def.rarity],
+            roundsHeld: 0,
+        });
+    }
+    return results;
 };
 
 // ── Slot count (accounting for negative editions) ─────────
 export const stickerSlotsUsed = (stickers: StickerInstance[]): number =>
-    stickers.filter(s => !EDITION_BONUSES[s.edition].freeSlot).length;
+    stickers.filter((s) => !EDITION_BONUSES[s.edition].freeSlot).length;
 
 export const canAddSticker = (stickers: StickerInstance[]): boolean =>
     stickerSlotsUsed(stickers) < MAX_STICKER_SLOTS;
 
 // ── Add / remove stickers from run state ──────────────────
-export const addSticker = (draft: RunState, sticker: StickerInstance): boolean => {
+export const addSticker = (
+    draft: RunState,
+    sticker: StickerInstance,
+): boolean => {
     if (!canAddSticker(draft.stickers)) return false;
     draft.stickers.push(sticker);
     return true;
 };
 
-export const removeSticker = (draft: RunState, instanceId: string): StickerInstance | null => {
-    const idx = draft.stickers.findIndex(s => s.instanceId === instanceId);
+export const removeSticker = (
+    draft: RunState,
+    instanceId: string,
+): StickerInstance | null => {
+    const idx = draft.stickers.findIndex((s) => s.instanceId === instanceId);
     if (idx === -1) return null;
     return draft.stickers.splice(idx, 1)[0];
 };
 
 export const sellSticker = (draft: RunState, instanceId: string): number => {
-    const sticker = draft.stickers.find(s => s.instanceId === instanceId);
+    const sticker = draft.stickers.find((s) => s.instanceId === instanceId);
     if (!sticker) return 0;
     const value = stickerSellValue(sticker, draft.stickers);
     removeSticker(draft, instanceId);
@@ -127,7 +203,11 @@ export const sellSticker = (draft: RunState, instanceId: string): number => {
 // ── Effect resolution ─────────────────────────────────────
 
 /** Merge a partial result into an accumulator. */
-const mergeResult = (acc: StickerResult, partial: Partial<StickerResult>, editionMult: number): void => {
+const mergeResult = (
+    acc: StickerResult,
+    partial: Partial<StickerResult>,
+    editionMult: number,
+): void => {
     if (partial.addCoins) acc.addCoins += partial.addCoins;
     if (partial.mult && partial.mult !== 1) {
         // Apply edition mult to the bonus portion
@@ -137,12 +217,18 @@ const mergeResult = (acc: StickerResult, partial: Partial<StickerResult>, editio
     if (partial.addCustomers) acc.addCustomers += partial.addCustomers;
     if (partial.addBuyChance) acc.addBuyChance += partial.addBuyChance;
     if (partial.damageReduction) acc.damageReduction += partial.damageReduction;
-    if (partial.kickChanceMult && partial.kickChanceMult !== 1) acc.kickChanceMult *= partial.kickChanceMult;
+    if (partial.kickChanceMult && partial.kickChanceMult !== 1)
+        acc.kickChanceMult *= partial.kickChanceMult;
     if (partial.rentReduction) acc.rentReduction += partial.rentReduction;
-    if (partial.stockCostReduction) acc.stockCostReduction += partial.stockCostReduction;
+    if (partial.stockCostReduction)
+        acc.stockCostReduction += partial.stockCostReduction;
     if (partial.hpHeal) acc.hpHeal += partial.hpHeal;
     if (partial.maxHpBonus) acc.maxHpBonus += partial.maxHpBonus;
-    if (partial.priceCapOverride) acc.priceCapOverride = Math.max(acc.priceCapOverride ?? 0, partial.priceCapOverride);
+    if (partial.priceCapOverride)
+        acc.priceCapOverride = Math.max(
+            acc.priceCapOverride ?? 0,
+            partial.priceCapOverride,
+        );
     if (partial.restocks) acc.restocks.push(...partial.restocks);
 };
 
@@ -153,9 +239,9 @@ export const resolveStickers = (
     baseCtx: Omit<StickerContext, "roundsHeld" | "stickerCount" | "stickers">,
 ): StickerResult => {
     const acc: StickerResult = { ...EMPTY_RESULT, restocks: [] };
-    const hasAmplifier = stickers.some(s => s.defId === "amplifier");
-    const hasCatalyst = stickers.some(s => s.defId === "catalyst");
-    const hasAntimatter = stickers.some(s => s.defId === "antimatter");
+    const hasAmplifier = stickers.some((s) => s.defId === "amplifier");
+    const hasCatalyst = stickers.some((s) => s.defId === "catalyst");
+    const hasAntimatter = stickers.some((s) => s.defId === "antimatter");
 
     for (const sticker of stickers) {
         const def = getStickerDef(sticker.defId);
