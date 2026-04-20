@@ -35,7 +35,6 @@ import {
     defaultPrice,
     generateDraftOffering,
     canAddToCooler,
-    packFitsInCooler,
     draftRerollCost,
     maxCoolerSize,
 } from "@/logic/snack";
@@ -66,7 +65,6 @@ import type {
     SnackItemInstance,
     CatalogueOffering,
     DraftOffering,
-    PackOffering,
     UpgradeId,
     ItemTypeTag,
     ItemVibeTag,
@@ -434,7 +432,6 @@ function DraftPanel({
     onSelectItem,
     onPlaceInSlot,
     onSendToCooler,
-    onBuyPack,
     onReroll,
 }: {
     draft: DraftOffering;
@@ -448,7 +445,6 @@ function DraftPanel({
     onSelectItem: (item: SnackItemInstance | null) => void;
     onPlaceInSlot: (slotIdx: number) => void;
     onSendToCooler: () => void;
-    onBuyPack: (pack: PackOffering) => void;
     onReroll: () => void;
 }) {
     const rerollPrice = draftRerollCost(round, rerollCount);
@@ -686,12 +682,10 @@ export default function App() {
     const {
         run,
         update,
-        catalogue,
         draft,
         setDraft,
         refreshCatalogue,
         refreshDraft,
-        selectedCatalogueItem,
         setSelectedCatalogueItem,
         selectedCoolerItem,
         setSelectedCoolerItem,
@@ -1813,26 +1807,6 @@ export default function App() {
         setSelectedShopItem(null);
     }, [selectedShopItem, run.coins, run.cooler, draft.aged, update, setDraft]);
 
-    const handleBuyPack = useCallback(
-        (pack: PackOffering) => {
-            if (
-                run.coins < pack.totalCost ||
-                !packFitsInCooler(run.cooler, pack, maxCoolerSize(run.upgradeCounts["expand-cooler"]))
-            )
-                return;
-            playSfx("slot-place");
-            update((d) => {
-                d.coins -= pack.totalCost;
-                d.cooler.push(...pack.items);
-            });
-            setDraft((prev) => ({
-                ...prev,
-                packs: prev.packs.filter((p) => p.packId !== pack.packId),
-            }));
-        },
-        [run.coins, run.cooler, update, setDraft],
-    );
-
     const handleDraftReroll = useCallback(() => {
         const cost = draftRerollCost(run.round, run.rerollCount);
         if (run.coins < cost) {
@@ -2522,7 +2496,6 @@ export default function App() {
                                     onSelectItem={setSelectedShopItem}
                                     onPlaceInSlot={handleShopPlaceInSlot}
                                     onSendToCooler={handleShopSendToCooler}
-                                    onBuyPack={handleBuyPack}
                                     onReroll={handleDraftReroll}
                                 />
                                 <button

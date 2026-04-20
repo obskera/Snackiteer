@@ -23,8 +23,8 @@ export type SnackItemDef = {
     /** Unique identifier for this item TYPE (e.g. "soda-can"). */
     defId: string;
     name: string;
-    /** Base tags: category + vibe. */
-    tags: [ItemTypeTag, ItemVibeTag];
+    /** Base tags: category + vibe(s). */
+    tags: [ItemTypeTag, ...ItemVibeTag[]];
     baseCost: number;
     basePrice: number;
 };
