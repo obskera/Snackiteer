@@ -44,7 +44,7 @@ export function StickerPackPopover({ options, currentStickers, maxSlots, onPick,
                     <p className="sp-popover__hint">Choose a slot</p>
                     <div className="sp-popover__slots">
                         {slots.map((existing, i) => {
-                            const isFree = !existing || (EDITION_BONUSES[existing.edition]?.freeSlot ?? false);
+                            const _isFree = !existing || (EDITION_BONUSES[existing.edition]?.freeSlot ?? false);
                             return (
                                 <button
                                     key={i}

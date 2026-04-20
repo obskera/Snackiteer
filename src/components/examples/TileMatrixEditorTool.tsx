@@ -10,7 +10,7 @@ import {
     roomTemplateToWorldgenInput,
     createRoomTemplateRegistry,
 } from "@/logic/tileMatrix";
-import type { RoomTemplate, TileMatrixValidationResult } from "@/logic/tileMatrix";
+import type { RoomTemplate } from "@/logic/tileMatrix";
 import {
     exportBrowserJsonFile,
     readBrowserJsonFileText,
@@ -63,7 +63,7 @@ const TileMatrixEditorTool = ({
 
     // --- Legend lookups ---
     const tileLookup = useMemo(() => buildTileLookup(DEFAULT_TILE_LEGEND), []);
-    const entityLookup = useMemo(
+    const _entityLookup = useMemo(
         () => buildEntityLookup(DEFAULT_ENTITY_LEGEND),
         [],
     );
@@ -189,9 +189,17 @@ const TileMatrixEditorTool = ({
 
     const handleImportFile = useCallback(async () => {
         try {
-            const text = await readBrowserJsonFileText();
-            if (text != null) {
-                setJsonImportText(text);
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = ".json";
+            const file = await new Promise<File | null>((resolve) => {
+                input.onchange = () => resolve(input.files?.[0] ?? null);
+                input.click();
+            });
+            if (!file) return;
+            const result = await readBrowserJsonFileText(file);
+            if (result.ok) {
+                setJsonImportText(result.raw);
                 setStatus("File loaded into import area. Click Import JSON to apply.");
                 setStatusType("info");
             }

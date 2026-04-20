@@ -39,6 +39,9 @@ export const resolveServePhase = (draft: RunState): RoundSummary => {
         netProfit,
         damageTaken: 0,
         kicks: 0,
+        evolved: [],
+        rotted: [],
+        newRecipes: [],
     };
 
     if (draft.coins < 0) {

@@ -16,7 +16,7 @@ const diagSold = (ctx: { machine: { slots: { position: { row: number; col: numbe
 const countType = (ctx: { typeSales: Partial<Record<string, number>> }, type: string) =>
     (ctx.typeSales as Record<string, number>)[type] ?? 0;
 
-const countVibe = (ctx: { vibeSales: Partial<Record<string, number>> }, vibe: string) =>
+const _countVibe = (ctx: { vibeSales: Partial<Record<string, number>> }, vibe: string) =>
     (ctx.vibeSales as Record<string, number>)[vibe] ?? 0;
 
 // ══════════════════════════════════════════════════════════
@@ -190,10 +190,10 @@ export const STICKER_DEFS: StickerDef[] = [
     {
         id: "gourmet",
         name: "Gourmet",
-        description: "Premium item sales +5¢",
+        description: "Candy sales +5¢",
         rarity: "uncommon",
         trigger: "on-sale",
-        resolve: (ctx) => ({ addCoins: ctx.soldItemType === "premium" ? 5 : 0 }),
+        resolve: (ctx) => ({ addCoins: ctx.soldItemType === "candy" ? 5 : 0 }),
     },
     {
         id: "variety-pack",

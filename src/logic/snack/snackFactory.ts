@@ -1,5 +1,4 @@
 import { generateId } from "@/logic/entity/Entity";
-import { rollAreaSequence, rollRoundArea } from "./areaDefs";
 import type {
     CatalogueOffering,
     CatalogueState,

@@ -88,12 +88,12 @@ describe("VendingMachine", () => {
 
     it("applies rarity class to items", () => {
         const machine = createMachineState();
-        const rare = createItemInstance(STARTER_ITEM_DEFS[0], "rare");
+        const rare = createItemInstance(STARTER_ITEM_DEFS[0], "fancy");
         getSlot(machine, 0, 0)!.item = rare;
 
         const { container } = render(
             <VendingMachine {...defaultProps()} slots={machine.slots} />,
         );
-        expect(container.querySelector(".vm-item--rare")).toBeTruthy();
+        expect(container.querySelector(".vm-item--fancy")).toBeTruthy();
     });
 });

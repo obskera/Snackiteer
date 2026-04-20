@@ -11,7 +11,7 @@ import {
     rentForRound,
 } from "@/logic/snack/snackFactory";
 import { STARTER_ITEM_DEFS } from "@/logic/snack/itemDefs";
-import type { CatalogueState, ItemQuality } from "@/logic/snack/snackTypes";
+import type { CatalogueState } from "@/logic/snack/snackTypes";
 import { QUALITY_PRICE_MULT } from "@/logic/snack/snackTypes";
 
 describe("createItemInstance", () => {
