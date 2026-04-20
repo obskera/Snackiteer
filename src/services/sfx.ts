@@ -107,9 +107,29 @@ function createCtx(): AudioContext {
     return ctx;
 }
 
+/**
+ * Ensure AudioContext is created and resumed inside a user gesture.
+ * Call this synchronously from a pointerdown/click handler.
+ */
+export function ensureAudioContext(): void {
+    createCtx();
+}
+
+let initPromise: Promise<void> | null = null;
+
 /** Preload all SFX buffers + BGM. Call once after first user interaction. */
 export async function initSfx(): Promise<void> {
+    if (initPromise) return initPromise;
+    initPromise = doInitSfx();
+    return initPromise;
+}
+
+async function doInitSfx(): Promise<void> {
     const ac = createCtx();
+    // Wait for context to be running (mobile browsers need this)
+    if (ac.state === "suspended") {
+        await ac.resume();
+    }
     const entries = Object.entries(SFX_FILES) as [SfxId, string][];
     await Promise.all(
         entries.map(async ([id, src]) => {

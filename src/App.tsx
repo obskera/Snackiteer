@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { VendingMachine } from "./components/vendingMachine";
 import { useFloatingFX } from "@/hooks/useFloatingFX";
-import { initSfx, playSfx, startBgm } from "@/services/sfx";
+import { initSfx, playSfx, startBgm, ensureAudioContext } from "@/services/sfx";
 import { AudioControls } from "@/components/AudioControls";
 import { StickerTray } from "@/components/StickerTray";
 import { StickerShopScreen } from "@/components/StickerShopScreen";
@@ -1673,6 +1673,7 @@ export default function App() {
     const [pickingFeatured, setPickingFeatured] = useState(false);
     const [shopOpen, setShopOpen] = useState(false);
     const [coolerOpen, setCoolerOpen] = useState(false);
+    const [areaDetailOpen, setAreaDetailOpen] = useState(false);
 
     // ── Sticker shop state (end-of-round reward) ─────────
     const [stickerShopOptions, setStickerShopOptions] = useState<
@@ -1992,6 +1993,8 @@ export default function App() {
     // Init audio on first pointer interaction so hover/click SFX work on menu
     const audioInited = useRef(false);
     const ensureAudio = useCallback(() => {
+        // Create/resume AudioContext synchronously inside user gesture (mobile requirement)
+        ensureAudioContext();
         if (!audioInited.current) {
             audioInited.current = true;
             initSfx();
@@ -2076,35 +2079,40 @@ export default function App() {
                     {(run.phase === "prep" || run.phase === "serve") &&
                         run.currentArea && (
                             <div className="vm-event-banner-wrap">
-                                <div className="vm-event-banner vm-event-banner--area" style={{ textAlign: "center" }}>
+                                <button
+                                    type="button"
+                                    className="vm-event-banner vm-event-banner--area vm-event-banner--compact"
+                                    onClick={() => setAreaDetailOpen(o => !o)}
+                                >
                                     <span className="vm-event-banner__name">
-                                        Round Area: {run.currentArea.area.name}
+                                        {run.currentArea.area.emoji} {run.currentArea.area.name}
+                                        {run.roundEvent ? ` • ${run.roundEvent.name}` : ""}
                                     </span>
-                                    <span className="vm-event-banner__desc">
-                                        {run.currentArea.area.flavor}
-                                        {" • "}
-                                        <strong>{run.currentArea.modifier.name}</strong>
-                                        {": "}
-                                        {run.currentArea.modifier.description}
-                                    </span>
-                                </div>
-                            </div>
-                        )}
-
-                    {(run.phase === "prep" || run.phase === "serve") &&
-                        run.roundEvent && (
-                            <div className="vm-event-banner-wrap">
-                                <div className="vm-event-banner">
-                                    <span className="vm-event-banner__icon">
-                                        {">>"}
-                                    </span>
-                                    <span className="vm-event-banner__name">
-                                        {run.roundEvent.name}
-                                    </span>
-                                    <span className="vm-event-banner__desc">
-                                        {run.roundEvent.description}
-                                    </span>
-                                </div>
+                                    <span className="vm-event-banner__tap-hint">tap for details</span>
+                                </button>
+                                {areaDetailOpen && (
+                                    <>
+                                        <div className="vm-event-detail-backdrop" onClick={() => setAreaDetailOpen(false)} />
+                                        <div className="vm-event-detail" onClick={(e) => e.stopPropagation()}>
+                                            <div className="vm-event-detail__section">
+                                                <strong>{run.currentArea.area.emoji} {run.currentArea.area.name}</strong>
+                                                <span>{run.currentArea.area.flavor}</span>
+                                                <span className="vm-event-detail__mod">
+                                                    <strong>{run.currentArea.modifier.name}</strong>: {run.currentArea.modifier.description}
+                                                </span>
+                                            </div>
+                                            {run.roundEvent && (
+                                                <div className="vm-event-detail__section">
+                                                    <strong>{">>"} {run.roundEvent.name}</strong>
+                                                    <span>{run.roundEvent.description}</span>
+                                                </div>
+                                            )}
+                                            <button type="button" className="vm-event-detail__close" onClick={() => setAreaDetailOpen(false)}>
+                                                Close
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         )}
 
