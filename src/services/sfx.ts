@@ -233,13 +233,22 @@ export function isSfxMuted(): boolean {
 
 /** Start BGM with a random track. When it ends, pick another random one. */
 export function startBgm(): void {
-    if (bgmSource || bgmBuffers.length === 0 || muted) return;
+    if (bgmSource || muted) return;
+    if (bgmBuffers.length === 0) {
+        // Buffers may still be loading — retry once they're ready
+        initPromise?.then(() => {
+            if (!bgmSource && !muted && bgmBuffers.length > 0) playRandomBgm();
+        });
+        return;
+    }
     playRandomBgm();
 }
 
 function playRandomBgm(): void {
     if (muted || bgmBuffers.length === 0) return;
     const ac = createCtx();
+    // Ensure context is running (may have been suspended by mobile browser)
+    if (ac.state === "suspended") ac.resume();
     const buf = bgmBuffers[Math.floor(Math.random() * bgmBuffers.length)];
 
     bgmGain = ac.createGain();
