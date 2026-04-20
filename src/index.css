@@ -53,6 +53,9 @@ a:hover {
 html, body {
     height: 100dvh;
     overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: pan-x pan-y;
+    -webkit-overflow-scrolling: auto;
 }
 
 body {
@@ -112,6 +115,15 @@ body::after {
         --bg-c1: #062e10;
         --bg-c2: #020a04;
     }
+}
+
+/* Static background mode — disables animated shapes + grid overlay */
+body.static-bg {
+    background: #020a04 !important;
+    animation: none !important;
+}
+body.static-bg::after {
+    display: none !important;
 }
 
 #root {

@@ -13,11 +13,26 @@ import {
 import { HowToPlayButton } from "@/components/HowToPlay";
 import "./AudioControls.css";
 
+const STATIC_BG_KEY = "snackiteer-static-bg";
+
+function getStoredStaticBg(): boolean {
+    try { return localStorage.getItem(STATIC_BG_KEY) === "1"; } catch { return false; }
+}
+
+function applyStaticBg(on: boolean): void {
+    document.body.classList.toggle("static-bg", on);
+    try { localStorage.setItem(STATIC_BG_KEY, on ? "1" : "0"); } catch { /* */ }
+}
+
+// Apply on load so it takes effect before React mounts
+applyStaticBg(getStoredStaticBg());
+
 export function AudioControls({ onQuit }: { onQuit?: () => void }) {
     const [open, setOpen] = useState(false);
     const [sfxVol, setSfxVol] = useState(getSfxVolume);
     const [bgmVol, setBgmVol] = useState(getBgmVolume);
     const [allMuted, setAllMuted] = useState(isSfxMuted);
+    const [staticBg, setStaticBg] = useState(getStoredStaticBg);
 
     const handleSfxChange = (v: number) => {
         setSfxVol(v);
@@ -90,6 +105,17 @@ export function AudioControls({ onQuit }: { onQuit?: () => void }) {
                         onClick={() => shuffleBgm()}
                     >
                         ⏭ Shuffle BGM
+                    </button>
+                    <button
+                        type="button"
+                        className="audio-controls__mute"
+                        onClick={() => {
+                            const next = !staticBg;
+                            setStaticBg(next);
+                            applyStaticBg(next);
+                        }}
+                    >
+                        {staticBg ? "Enable Animated BG" : "Disable Animated BG"}
                     </button>
                     <HowToPlayButton />
                     {onQuit && (

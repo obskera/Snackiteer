@@ -2506,13 +2506,22 @@ export default function App() {
                                     onSendToCooler={handleShopSendToCooler}
                                     onReroll={handleDraftReroll}
                                 />
-                                <button
-                                    type="button"
-                                    className="vm-start-round"
-                                    onClick={() => { setShopOpen(false); handleStartRound(); }}
-                                >
-                                    Start Round {run.round}
-                                </button>
+                                <div className="vm-shop-popover__actions">
+                                    <button
+                                        type="button"
+                                        className="vm-shop-back"
+                                        onClick={() => setShopOpen(false)}
+                                    >
+                                        ← Back
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="vm-start-round"
+                                        onClick={() => { setShopOpen(false); handleStartRound(); }}
+                                    >
+                                        Start Round {run.round}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     )}

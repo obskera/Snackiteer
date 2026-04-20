@@ -183,6 +183,7 @@
     flex: 1 1 0;
     min-height: 0;
     overflow-y: auto;
+    overscroll-behavior: contain;
     scrollbar-width: thin;
     scrollbar-color: #39ff14 #1a1a2e;
     padding-right: 2px;
@@ -550,6 +551,37 @@
 
 .vm-shop-placement__cooler-btn:hover {
     background: #4fc3f711;
+    border-color: #39ff14;
+    color: #39ff14;
+}
+
+/* ── Shop popover actions row ──────────────────────────── */
+.vm-shop-popover__actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(6px, 2vw, 12px);
+    width: 100%;
+    padding-top: 4px;
+}
+
+.vm-shop-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(4px, 1.2vw, 7px) clamp(8px, 2.5vw, 14px);
+    background: none;
+    border: 2px solid #888;
+    border-radius: 8px;
+    color: #aaa;
+    font-family: monospace;
+    font-size: clamp(9px, 2vw, 12px);
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color 0.12s, color 0.12s;
+}
+
+.vm-shop-back:hover {
     border-color: #39ff14;
     color: #39ff14;
 }
@@ -1213,6 +1245,7 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    overscroll-behavior: contain;
     font-family: monospace;
     font-size: 13px;
     line-height: 1.6;
@@ -1624,6 +1657,7 @@
     backdrop-filter: blur(4px);
     animation: vm-summary-in 0.3s ease-out;
     overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 12px;
     box-sizing: border-box;
 }
@@ -2248,6 +2282,7 @@
 .vm-shop-popover__card .vm-catalogue {
     flex: 1 1 auto;
     overflow-y: auto;
+    overscroll-behavior: contain;
     scrollbar-width: thin;
     scrollbar-color: #39ff14 #1a1a2e;
 }
