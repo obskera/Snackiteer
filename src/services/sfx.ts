@@ -1,5 +1,7 @@
 // Lightweight SFX player — Web Audio API, supports overlapping playback.
 
+import { resolvePublicAssetPath } from "@/utils/assetPaths";
+
 export type SfxId =
     | "coin"
     | "combo"
@@ -112,7 +114,7 @@ export async function initSfx(): Promise<void> {
     await Promise.all(
         entries.map(async ([id, src]) => {
             try {
-                const res = await fetch(src);
+                const res = await fetch(resolvePublicAssetPath(src));
                 const arrayBuf = await res.arrayBuffer();
                 const audioBuf = await ac.decodeAudioData(arrayBuf);
                 buffers.set(id, audioBuf);
@@ -126,7 +128,7 @@ export async function initSfx(): Promise<void> {
     await Promise.all(
         BGM_FILES.map(async (src) => {
             try {
-                const res = await fetch(src);
+                const res = await fetch(resolvePublicAssetPath(src));
                 const arrayBuf = await res.arrayBuffer();
                 const audioBuf = await ac.decodeAudioData(arrayBuf);
                 bgmBuffers.push(audioBuf);
