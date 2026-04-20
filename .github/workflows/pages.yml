@@ -19,7 +19,7 @@ jobs:
     build:
         runs-on: ubuntu-latest
         env:
-            VITE_BASE_PATH: /UrsaManus/
+            VITE_BASE_PATH: /Snackiteer/
 
         steps:
             - name: Checkout
