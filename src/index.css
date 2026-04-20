@@ -143,7 +143,7 @@ button:focus-visible {
 /* Medium phones (381–430px) */
 @media (min-width: 381px) and (max-width: 430px) {
     :root { --px: 3.5px; }
-    .GameContainer { padding: 0.5rem 0.35rem; }
+    .GameContainer { padding: 0.5rem 0.25rem; }
 }
 
 /* Tablets & landscape phones (431–768px) */

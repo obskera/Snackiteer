@@ -2,6 +2,7 @@ import type { RunState, RoundSummary } from "./snackTypes";
 import { rentForRound } from "./snackFactory";
 import { evolveUnsoldItems } from "./itemEvolution";
 import type { EvolutionResult } from "./itemEvolution";
+import { rollRoundArea } from "./areaDefs";
 
 /**
  * Resolve a serve phase: simulate customer purchases, pay rent,
@@ -68,11 +69,16 @@ export const advanceToNextRound = (draft: RunState): EvolutionResult => {
     ageStickers(draft.stickers);
     // Roll the next round's event so players can see it during prep
     draft.roundEvent = rollRoundEvent(draft.round);
-    // Apply HP regen if the event grants it
-    if (draft.roundEvent?.hpRegen) {
+    // Roll area for this round
+    if (draft.areaSequence.length > 0) {
+        draft.currentArea = rollRoundArea(draft.areaSequence, draft.round - 1);
+    }
+    // Apply HP regen from event or area modifier
+    const hpRegen = (draft.roundEvent?.hpRegen ?? 0) + (draft.currentArea?.modifier.hpRegen ?? 0);
+    if (hpRegen > 0) {
         draft.machineHp = Math.min(
             draft.maxMachineHp,
-            draft.machineHp + draft.roundEvent.hpRegen,
+            draft.machineHp + hpRegen,
         );
     }
     return evoResult;

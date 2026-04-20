@@ -2835,6 +2835,15 @@ export const MOOD_TAG_MAP: Record<string, string[]> = {
     none: [], // matches everything
 };
 
+/**
+ * Partial-match tags per mood. Items with these tags satisfy the mood
+ * at reduced priority (50% chance of being considered a match).
+ * e.g. drinks are half-sweet — they partially satisfy sweet-seekers.
+ */
+export const MOOD_PARTIAL_TAGS: Record<string, string[]> = {
+    sweet: ["drink"],
+};
+
 export const doesItemMatchMood = (
     item: SnackItemInstance,
     mood: string,
@@ -2842,7 +2851,13 @@ export const doesItemMatchMood = (
     if (mood === "none") return true;
     if (mood === "cheap") return item.price <= 3;
     const tags = MOOD_TAG_MAP[mood] ?? [];
-    return item.tags.some((t) => tags.includes(t));
+    const fullMatch = item.tags.some((t) => tags.includes(t));
+    // If the item has a partial-match tag for this mood, demote to 50%
+    const partialTags = MOOD_PARTIAL_TAGS[mood];
+    if (fullMatch && partialTags && item.tags.some((t) => partialTags.includes(t))) {
+        return Math.random() < 0.5;
+    }
+    return fullMatch;
 };
 
 // ── Helpers ──────────────────────────────────────────────
@@ -3825,20 +3840,47 @@ export type RoundSimContext = {
     baseSellChance: number;
     roundEvent: RoundEventDef | null;
     round: number;
+    /** Combined price multiplier (event × area). */
+    priceMult: number;
+    /** Combined damage reduction (event + area). */
+    damageReduction: number;
 };
 
 export const createRoundSimContext = (
     roundEvent: RoundEventDef | null,
     round: number,
+    areaMoods?: string[],
+    areaModifier?: { boostedMood?: string; angerMult?: number; sellChanceMult?: number; priceMult?: number; damageReduction?: number },
 ): RoundSimContext => {
     const moodKeys = Object.keys(MOOD_LINES);
     const moodPool = [...moodKeys];
+
+    // Area location mood bias (3 extra copies per boosted mood)
+    if (areaMoods) {
+        for (const mood of areaMoods) {
+            if (moodKeys.includes(mood)) {
+                for (let j = 0; j < 3; j++) moodPool.push(mood);
+            }
+        }
+    }
+
+    // Area sub-modifier mood boost (2 extra copies)
+    if (areaModifier?.boostedMood && moodKeys.includes(areaModifier.boostedMood)) {
+        for (let j = 0; j < 2; j++) moodPool.push(areaModifier.boostedMood);
+    }
+
+    // Round event mood boost (4 extra copies)
     if (roundEvent?.boostedMood && moodKeys.includes(roundEvent.boostedMood)) {
         for (let j = 0; j < 4; j++) moodPool.push(roundEvent.boostedMood);
     }
-    const angerMult = (roundEvent?.angerMult ?? 1) * (1 + (round - 1) * 0.06);
-    const baseSellChance = Math.max(0.35, 0.65 - (round - 1) * 0.015);
-    return { moodPool, angerMult, baseSellChance, roundEvent, round };
+
+    const baseAnger = (roundEvent?.angerMult ?? 1) * (1 + (round - 1) * 0.06);
+    const angerMult = baseAnger * (areaModifier?.angerMult ?? 1);
+    const rawSellChance = Math.max(0.35, 0.65 - (round - 1) * 0.015);
+    const baseSellChance = rawSellChance * (roundEvent?.sellChanceMult ?? 1) * (areaModifier?.sellChanceMult ?? 1);
+    const priceMult = (roundEvent?.priceMult ?? 1) * (areaModifier?.priceMult ?? 1);
+    const damageReduction = (roundEvent?.damageReduction ?? 0) + (areaModifier?.damageReduction ?? 0);
+    return { moodPool, angerMult, baseSellChance, roundEvent, round, priceMult, damageReduction };
 };
 
 /**
@@ -3889,11 +3931,10 @@ export const simulateOneCustomer = (
         doesItemMatchMood(slots[idx].item!, moodKey),
     );
     const anger = computeAngerScore(slots, soldSlots) * ctx.angerMult;
-    const damageReduce = ctx.roundEvent?.damageReduction ?? 0;
     const kChance = kickChance(anger);
     const kicked = Math.random() < kChance;
     const rawDamage = kicked ? rollKickDamage(anger) : 0;
-    const damage = Math.max(1, rawDamage - damageReduce);
+    const damage = Math.max(1, rawDamage - ctx.damageReduction);
 
     if (priceRejected) {
         return {
@@ -3917,8 +3958,7 @@ export const simulateOneCustomer = (
     const FEATURED_SELL_BOOST = 0.15;
     const effectiveSellChance = Math.min(
         0.95,
-        (ctx.baseSellChance + (featuredIdx != null ? FEATURED_SELL_BOOST : 0)) *
-            (ctx.roundEvent?.sellChanceMult ?? 1),
+        ctx.baseSellChance + (featuredIdx != null ? FEATURED_SELL_BOOST : 0),
     );
 
     if (Math.random() < effectiveSellChance) {
@@ -3936,7 +3976,7 @@ export const simulateOneCustomer = (
         const item = slots[slotIdx].item!;
         const isFeatured = slots[slotIdx].featured;
         const finalPrice = Math.round(
-            item.price * (ctx.roundEvent?.priceMult ?? 1),
+            item.price * ctx.priceMult,
         );
         const soldItem = { ...item, price: finalPrice };
         const customerMax = maxPriceForCustomer(item, isWhale, ctx.round);

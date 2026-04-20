@@ -18,6 +18,7 @@ import "./VendingMachine.css";
 
 type SlotProps = {
     slot: MachineSlot;
+    slotNumber: number;
     selected: boolean;
     unlockPreview?: boolean;
     serveMatch?: boolean;
@@ -59,7 +60,7 @@ function SlotItem({ item }: { item: SnackItemInstance }) {
             <span className="vm-item__age-badge" style={{ color: age.color }}>
                 {age.letter}
             </span>
-            <span className="vm-item__name">{item.name}</span>
+            <span className="vm-item__name">{item.baseName ?? item.name}</span>
             <span className="vm-item__price">{item.price}¢</span>
         </div>
     );
@@ -67,6 +68,7 @@ function SlotItem({ item }: { item: SnackItemInstance }) {
 
 function Slot({
     slot,
+    slotNumber,
     selected,
     unlockPreview,
     onSlotClick,
@@ -90,6 +92,7 @@ function Slot({
             className={`vm-slot ${stateClass} ${selectedClass} ${featuredClass}`}
             onClick={() => onSlotClick(slot)}
         >
+            <span className="vm-slot__number">{slotNumber}</span>
             {slot.featured && <div className="vm-slot__featured-particles" />}
             {slot.item && <SlotItem item={slot.item} />}
             {selected && slot.item && onTrash && (
@@ -190,6 +193,8 @@ export type VendingMachineProps = {
     serveMatchSlots?: Set<number>;
     /** Slot indices that are part of an active combo (prep phase glow). */
     comboSlots?: Set<number>;
+    /** Content rendered between the slot grid and the info bar. */
+    actionSlot?: ReactNode;
     onSlotClick: (slot: MachineSlot) => void;
     onTrash?: (row: number, col: number) => void;
     onPriceAdjust?: (row: number, col: number, delta: number) => void;
@@ -212,6 +217,7 @@ export function VendingMachine({
     headerExtra,
     serveMatchSlots,
     comboSlots,
+    actionSlot,
     onSlotClick,
     onTrash,
     onPriceAdjust,
@@ -230,7 +236,7 @@ export function VendingMachine({
                 <span className="vm-coins">Coins: {coins}¢</span>
             </div>
 
-            {/* HP bar */}
+            {/* HP bar + coins */}
             <div className="vm-hp-bar">
                 <div className="vm-hp-bar__label">
                     HP {machineHp}/{maxMachineHp}
@@ -241,6 +247,7 @@ export function VendingMachine({
                         style={{ width: `${hpPct}%`, background: hpColor }}
                     />
                 </div>
+                <span className="vm-coins">🪙 {coins}¢</span>
                 {needsRepair && onRepair && (
                     <button
                         type="button"
@@ -271,6 +278,7 @@ export function VendingMachine({
                             <Slot
                                 key={`${row}-${col}`}
                                 slot={slot}
+                                slotNumber={flatIdx + 1}
                                 selected={isSelected}
                                 unlockPreview={isNextLocked}
                                 serveMatch={serveMatchSlots?.has(flatIdx)}
@@ -305,6 +313,8 @@ export function VendingMachine({
                     <span className="vm-info-bar__rent">Rent: {rent}¢</span>
                 )}
             </div>
+
+            {actionSlot}
         </div>
     );
 }

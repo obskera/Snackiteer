@@ -5,10 +5,10 @@ import { initSfx, playSfx, startBgm } from "@/services/sfx";
 import { AudioControls } from "@/components/AudioControls";
 import { StickerTray } from "@/components/StickerTray";
 import { StickerShopScreen } from "@/components/StickerShopScreen";
+import { HowToPlayButton } from "@/components/HowToPlay";
+import { generateId } from "@/logic/entity/Entity";
 import {
     createRunState,
-    STARTER_ITEM_DEFS,
-    createItemInstance,
     generateCatalogueOffering,
     getSlot,
     rentForRound,
@@ -21,6 +21,7 @@ import {
     sellSticker,
     resolveStickers,
     RETIREMENT_GOAL,
+    PROFITEER_ROUNDS,
     profiteerTarget,
     MAX_COINS,
     detectActiveRecipes,
@@ -28,15 +29,19 @@ import {
     RECIPE_DEFS,
     MAX_EVO_LEVEL,
     ROTTEN_LEVEL,
+    AGE_DISPLAY,
     PRICE_DIAL_MIN,
     PRICE_DIAL_MAX,
     defaultPrice,
+    generateDraftOffering,
+    canAddToCooler,
+    packFitsInCooler,
+    draftRerollCost,
+    maxCoolerSize,
 } from "@/logic/snack";
-import type { SnackItemDef } from "@/logic/snack";
 import {
     simulateOneCustomer,
     createRoundSimContext,
-    previewCustomerMoods,
     eventsToNarration,
 } from "@/logic/snack/serveNarration";
 import type {
@@ -48,6 +53,7 @@ import type {
     RoundSimContext,
 } from "@/logic/snack/serveNarration";
 import { rollRoundEvent } from "@/logic/snack/roundEvents";
+import { rollAreaSequence, rollRoundArea } from "@/logic/snack/areaDefs";
 import { detectCombos } from "@/logic/snack/comboSystem";
 import { useTypewriter } from "@/hooks/useTypewriter";
 import type { TypewriterLine } from "@/hooks/useTypewriter";
@@ -59,6 +65,8 @@ import type {
     RoundEventDef,
     SnackItemInstance,
     CatalogueOffering,
+    DraftOffering,
+    PackOffering,
     UpgradeId,
     ItemTypeTag,
     ItemVibeTag,
@@ -147,7 +155,15 @@ function useGameState() {
     const [catalogue, setCatalogue] = useState<CatalogueOffering>({
         items: [],
     });
+    const [draft, setDraft] = useState<DraftOffering>({
+        singles: [],
+        aged: [],
+        soldAgedIds: [],
+        packs: [],
+    });
     const [selectedCatalogueItem, setSelectedCatalogueItem] =
+        useState<SnackItemInstance | null>(null);
+    const [selectedCoolerItem, setSelectedCoolerItem] =
         useState<SnackItemInstance | null>(null);
 
     const update = useCallback((fn: (draft: RunState) => RunState | void) => {
@@ -160,6 +176,13 @@ function useGameState() {
 
     const refreshCatalogue = useCallback((state: RunState) => {
         setCatalogue(generateCatalogueOffering(state.catalogue));
+        setDraft(generateDraftOffering(state.catalogue));
+        setSelectedCatalogueItem(null);
+        setSelectedCoolerItem(null);
+    }, []);
+
+    const refreshDraft = useCallback((state: RunState) => {
+        setDraft(generateDraftOffering(state.catalogue));
         setSelectedCatalogueItem(null);
     }, []);
 
@@ -167,9 +190,14 @@ function useGameState() {
         run,
         update,
         catalogue,
+        draft,
+        setDraft,
         refreshCatalogue,
+        refreshDraft,
         selectedCatalogueItem,
         setSelectedCatalogueItem,
+        selectedCoolerItem,
+        setSelectedCoolerItem,
     };
 }
 
@@ -216,81 +244,7 @@ function MenuScreen({ onStart }: { onStart: (mode: GameMode) => void }) {
                     </span>
                 </button>
             </div>
-        </div>
-    );
-}
-
-// ── Customer queue preview (prep phase) ─────────────────
-
-const MOOD_ICONS: Record<
-    string,
-    { icon: string; label: string; color: string }
-> = {
-    sweet: { icon: "🍬", label: "sweet", color: "#ff80ab" },
-    salty: { icon: "🧂", label: "salty", color: "#ffe082" },
-    energy: { icon: "E", label: "energy", color: "#69f0ae" },
-    drink: { icon: "🥤", label: "drink", color: "#4fc3f7" },
-    fancy: { icon: "💎", label: "fancy", color: "#ffd700" },
-    cheap: { icon: "💰", label: "cheap", color: "#a5d6a7" },
-    none: { icon: "❓", label: "any", color: "#888" },
-};
-
-function CustomerQueuePreview({
-    round,
-    roundEvent,
-    magnetCount,
-}: {
-    round: number;
-    roundEvent: import("@/logic/snack").RoundEventDef | null | undefined;
-    magnetCount: number;
-}) {
-    const [moods, setMoods] = useState<string[]>([]);
-
-    // Use primitive deps so object reference changes (structuredClone) don't reshuffle
-    const eventName = roundEvent?.name;
-    const eventCustomerDelta = roundEvent?.customerDelta;
-    const eventBoostedMood = roundEvent?.boostedMood;
-    useEffect(() => {
-        const baseCount =
-            3 + Math.floor(Math.random() * 3) + Math.floor(round / 3);
-        const count = Math.max(
-            1,
-            baseCount + (eventCustomerDelta ?? 0) + magnetCount,
-        );
-        setMoods(previewCustomerMoods(count, roundEvent));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [round, eventName, eventCustomerDelta, eventBoostedMood, magnetCount]);
-
-    if (moods.length === 0) return null;
-
-    return (
-        <div className="vm-customer-queue">
-            <span className="vm-customer-queue__label">
-                Incoming — {moods.length} customer
-                {moods.length !== 1 ? "s" : ""}
-            </span>
-            <div className="vm-customer-queue__list">
-                {moods.map((mood, i) => {
-                    const m = MOOD_ICONS[mood] ?? MOOD_ICONS["none"];
-                    return (
-                        <div
-                            key={i}
-                            className="vm-customer-card"
-                            title={m.label}
-                        >
-                            <div
-                                className="vm-customer-card__bubble"
-                                style={{ borderColor: m.color }}
-                            >
-                                <span className="vm-customer-card__icon">
-                                    {m.icon}
-                                </span>
-                            </div>
-                            <div className="vm-customer-card__silhouette" />
-                        </div>
-                    );
-                })}
-            </div>
+            <HowToPlayButton />
         </div>
     );
 }
@@ -466,36 +420,70 @@ function RoundSummary({
     );
 }
 
-// ── Catalogue panel ──────────────────────────────────────
+// ── Draft panel (replaces old static catalogue) ──────────
 
-function CataloguePanel({
-    catalogue,
+function DraftPanel({
+    draft,
     coins,
-    selectedItem,
+    cooler,
+    slots,
+    round,
+    rerollCount,
+    selectedShopItem,
+    maxCooler,
     onSelectItem,
+    onPlaceInSlot,
+    onSendToCooler,
+    onBuyPack,
+    onReroll,
 }: {
-    catalogue: CatalogueOffering;
+    draft: DraftOffering;
     coins: number;
-    selectedItem: SnackItemInstance | null;
+    cooler: SnackItemInstance[];
+    slots: import("@/logic/snack").MachineSlot[];
+    round: number;
+    rerollCount: number;
+    selectedShopItem: SnackItemInstance | null;
+    maxCooler: number;
     onSelectItem: (item: SnackItemInstance | null) => void;
+    onPlaceInSlot: (slotIdx: number) => void;
+    onSendToCooler: () => void;
+    onBuyPack: (pack: PackOffering) => void;
+    onReroll: () => void;
 }) {
+    const rerollPrice = draftRerollCost(round, rerollCount);
+    const canReroll = coins >= rerollPrice;
+
     return (
         <div className="vm-catalogue">
+            <div className="vm-catalogue__header">
+                <span className="vm-catalogue__title">Shop</span>
+                <span className="vm-coins" style={{ fontSize: 'clamp(9px, 2vw, 12px)' }}>🪙 {coins}¢</span>
+                <button
+                    type="button"
+                    className="vm-catalogue__reroll"
+                    disabled={!canReroll}
+                    onClick={onReroll}
+                >
+                    Reroll {rerollPrice}¢
+                </button>
+            </div>
+
+            {/* All shop items in one 3-column grid: base singles + aged */}
             <div className="vm-catalogue__items">
-                {catalogue.items.map((item) => {
+                {draft.singles.map((item) => {
                     const canAfford = coins >= item.cost;
+                    const isSelected =
+                        selectedShopItem?.instanceId === item.instanceId;
                     return (
                         <button
                             type="button"
                             key={item.instanceId}
-                            className={`vm-catalogue__item ${selectedItem?.instanceId === item.instanceId ? "vm-catalogue__item--selected" : ""} ${!canAfford ? "vm-catalogue__item--unaffordable" : ""}`}
+                            className={`vm-catalogue__item ${isSelected ? "vm-catalogue__item--selected" : ""} ${!canAfford ? "vm-catalogue__item--unaffordable" : ""}`}
+                            disabled={!canAfford}
                             onClick={() => {
                                 playSfx("slot-select");
-                                onSelectItem(
-                                    selectedItem?.instanceId === item.instanceId
-                                        ? null
-                                        : item,
-                                );
+                                onSelectItem(isSelected ? null : item);
                             }}
                         >
                             <span className="vm-catalogue__name">
@@ -507,17 +495,184 @@ function CataloguePanel({
                                 {item.quality}
                             </span>
                             <span className="vm-catalogue__cost">
-                                Cost: {item.cost}¢
+                                {item.cost}¢
                             </span>
-                            <span className="vm-catalogue__sell">
-                                Sell: {item.price}¢
+                        </button>
+                    );
+                })}
+                {draft.aged.map((item) => {
+                    const isSold = draft.soldAgedIds.includes(item.instanceId);
+                    const canAfford = !isSold && coins >= item.cost;
+                    const isSelected =
+                        selectedShopItem?.instanceId === item.instanceId;
+                    return (
+                        <button
+                            type="button"
+                            key={item.instanceId}
+                            className={`vm-catalogue__item ${isSelected ? "vm-catalogue__item--selected" : ""} ${isSold ? "vm-catalogue__item--sold" : !canAfford ? "vm-catalogue__item--unaffordable" : ""}`}
+                            disabled={!canAfford}
+                            onClick={() => {
+                                playSfx("slot-select");
+                                onSelectItem(isSelected ? null : item);
+                            }}
+                        >
+                            {isSold ? (
+                                <span className="vm-catalogue__sold">Sold Out</span>
+                            ) : (
+                                <>
+                                    <span className="vm-catalogue__name">
+                                        {item.baseName ?? item.name}
+                                    </span>
+                                    {(item.evoLevel ?? 0) !== 0 && AGE_DISPLAY[item.evoLevel!] && (
+                                        <span
+                                            className="vm-catalogue__age"
+                                            style={{ color: AGE_DISPLAY[item.evoLevel!].color }}
+                                        >
+                                            {AGE_DISPLAY[item.evoLevel!].label}
+                                        </span>
+                                    )}
+                                    <span
+                                        className={`vm-catalogue__quality vm-catalogue__quality--${item.quality}`}
+                                    >
+                                        {item.quality}
+                                    </span>
+                                    <span className="vm-catalogue__cost">
+                                        {item.cost}¢
+                                    </span>
+                                </>
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* Packs hidden for now */}
+
+            {/* Mini grid — pick a slot to place, or send to cooler */}
+            <div className="vm-shop-placement">
+                <span className="vm-shop-placement__label">
+                    {selectedShopItem
+                        ? `Place ${selectedShopItem.name}:`
+                        : "Select an item above"}
+                </span>
+                <div className="vm-shop-grid">
+                    {slots.map((slot, idx) => {
+                        const empty = slot.unlocked && !slot.item;
+                        const active = !!selectedShopItem;
+                        return (
+                            <button
+                                type="button"
+                                key={idx}
+                                className={`vm-shop-grid__cell ${!slot.unlocked ? "vm-shop-grid__cell--locked" : ""} ${slot.item ? "vm-shop-grid__cell--full" : ""} ${empty ? "vm-shop-grid__cell--empty" : ""} ${!active ? "vm-shop-grid__cell--inactive" : ""}`}
+                                disabled={!empty || !active}
+                                onClick={() => onPlaceInSlot(idx)}
+                                title={
+                                    slot.item
+                                        ? slot.item.name
+                                        : slot.unlocked
+                                          ? "Empty"
+                                          : "Locked"
+                                }
+                            >
+                                {slot.item ? (
+                                    <span className="vm-shop-grid__name">
+                                        {slot.item.name.slice(0, 3)}
+                                    </span>
+                                ) : slot.unlocked ? (
+                                    "+"
+                                ) : (
+                                    "🔒"
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+                {selectedShopItem && canAddToCooler(cooler, maxCooler) ? (
+                    <button
+                        type="button"
+                        className="vm-shop-placement__cooler-btn"
+                        onClick={onSendToCooler}
+                    >
+                        → Cooler
+                    </button>
+                ) : (
+                    <button
+                        type="button"
+                        className="vm-shop-placement__cooler-btn vm-shop-placement__cooler-btn--inactive"
+                        disabled
+                    >
+                        → Cooler
+                    </button>
+                )}
+                {cooler.length > 0 && (
+                    <span className="vm-shop-placement__cooler-count">
+                        Cooler: {cooler.map((i) => i.name).join(", ")} ({cooler.length}/{maxCooler})
+                    </span>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ── Cooler panel (holding area) ──────────────────────────
+
+function CoolerPanel({
+    cooler,
+    maxCooler,
+    selectedItem,
+    onSelect,
+}: {
+    cooler: SnackItemInstance[];
+    maxCooler: number;
+    selectedItem: SnackItemInstance | null;
+    onSelect: (item: SnackItemInstance | null) => void;
+}) {
+    if (cooler.length === 0) {
+        return (
+            <div className="vm-cooler">
+                <span className="vm-cooler__label">
+                    Cooler ({cooler.length}/{maxCooler})
+                </span>
+                <p className="vm-cooler__hint">
+                    No items in cooler. Buy from the Shop to stock up!
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="vm-cooler">
+            <span className="vm-cooler__label">
+                Cooler ({cooler.length}/{maxCooler})
+            </span>
+            <div className="vm-cooler__items">
+                {cooler.map((item) => {
+                    const isSelected =
+                        selectedItem?.instanceId === item.instanceId;
+                    return (
+                        <button
+                            type="button"
+                            key={item.instanceId}
+                            className={`vm-cooler__item ${isSelected ? "vm-cooler__item--selected" : ""}`}
+                            onClick={() => {
+                                playSfx("slot-select");
+                                onSelect(isSelected ? null : item);
+                            }}
+                        >
+                            <span className="vm-cooler__item-name">
+                                {item.name}
+                            </span>
+                            <span
+                                className={`vm-cooler__item-quality vm-cooler__item-quality--${item.quality}`}
+                            >
+                                {item.quality}
                             </span>
                         </button>
                     );
                 })}
             </div>
             {selectedItem && (
-                <p className="vm-catalogue__hint">
+                <p className="vm-cooler__hint">
                     Click an empty slot to place {selectedItem.name}
                 </p>
             )}
@@ -532,9 +687,14 @@ export default function App() {
         run,
         update,
         catalogue,
+        draft,
+        setDraft,
         refreshCatalogue,
+        refreshDraft,
         selectedCatalogueItem,
         setSelectedCatalogueItem,
+        selectedCoolerItem,
+        setSelectedCoolerItem,
     } = useGameState();
 
     // ── Serve narration (single source of truth) ──────────
@@ -640,7 +800,7 @@ export default function App() {
     // ── Mid-round restock state ─────────────────────────────
     const [restockPending, setRestockPending] = useState(false);
     const [restockSelectedDef, setRestockSelectedDef] =
-        useState<SnackItemDef | null>(null);
+        useState<SnackItemInstance | null>(null);
     const prevNarrationDoneRef = useRef(false);
 
     useEffect(() => {
@@ -699,6 +859,16 @@ export default function App() {
                 return;
             }
 
+            // Profiteer mode: survived all rounds = win!
+            if (
+                draft.gameMode === "profiteer" &&
+                draft.round >= PROFITEER_ROUNDS
+            ) {
+                draft.phase = "win";
+                playSfx("round-end");
+                return;
+            }
+
             // Retirement mode: check win
             if (
                 draft.gameMode === "retirement" &&
@@ -725,6 +895,8 @@ export default function App() {
             const fresh = createRunState(mode);
             fresh.phase = "prep";
             fresh.roundEvent = rollRoundEvent(fresh.round);
+            fresh.areaSequence = rollAreaSequence(20);
+            fresh.currentArea = rollRoundArea(fresh.areaSequence, fresh.round - 1);
             update(() => fresh);
             refreshCatalogue(fresh);
         },
@@ -742,6 +914,7 @@ export default function App() {
 
     const handleStartRound = useCallback(() => {
         const event = run.roundEvent;
+        const area = run.currentArea;
 
         // Pre-compute combos from the CURRENT grid (before items leave)
         const combos = detectCombos(run.machine);
@@ -750,12 +923,19 @@ export default function App() {
         const snapshot = structuredClone(run.machine.slots);
         const baseCustomers =
             3 + Math.floor(Math.random() * 3) + Math.floor(run.round / 3);
+        const eventDelta = event?.customerDelta ?? 0;
+        const areaDelta = area?.modifier.customerDelta ?? 0;
         const customerCount = Math.max(
             1,
-            baseCustomers + (event?.customerDelta ?? 0),
+            baseCustomers + eventDelta + areaDelta,
         );
 
-        const simCtx = createRoundSimContext(event ?? null, run.round);
+        const simCtx = createRoundSimContext(
+            event ?? null,
+            run.round,
+            area?.area.boostedMoods,
+            area?.modifier,
+        );
         const soldSlots = new Set<number>();
         const events: ServeEvent[] = [];
         let machineEmptied = false;
@@ -782,10 +962,11 @@ export default function App() {
 
         const remainingCustomers = customerCount - customersServed;
 
-        const rent =
+        const baseRent =
             run.gameMode === "profiteer"
                 ? 0
                 : rentForRound(run.round, run.rent);
+        const rent = Math.max(0, baseRent + (area?.modifier.rentDelta ?? 0));
 
         playSfx("round-start");
         update((draft) => {
@@ -1213,18 +1394,18 @@ export default function App() {
         });
     }, [run, update, serve.runId]);
 
-    // ── Mid-round restock: place item at 1.5x cost ────────
+    // ── Mid-round restock: place cooler item into empty slot ─
     const handleRestockPlace = useCallback(
         (slotIdx: number, item: SnackItemInstance) => {
-            const cost = Math.ceil(item.cost * 1.5);
-            if (run.coins < cost) return;
             playSfx("slot-place");
             update((draft) => {
-                draft.coins -= cost;
                 draft.machine.slots[slotIdx].item = { ...item };
+                draft.cooler = draft.cooler.filter(
+                    (b) => b.instanceId !== item.instanceId,
+                );
             });
         },
-        [run.coins, update],
+        [update],
     );
 
     // ── Mid-round restock: continue serving ──────────────
@@ -1496,6 +1677,8 @@ export default function App() {
     const [upgradeOpen, setUpgradeOpen] = useState(false);
     const [recipeBookOpen, setRecipeBookOpen] = useState(false);
     const [pickingFeatured, setPickingFeatured] = useState(false);
+    const [shopOpen, setShopOpen] = useState(false);
+    const [coolerOpen, setCoolerOpen] = useState(false);
 
     // ── Sticker shop state (end-of-round reward) ─────────
     const [stickerShopOptions, setStickerShopOptions] = useState<
@@ -1577,6 +1760,93 @@ export default function App() {
         [update],
     );
 
+    // ── Draft shop handlers ────────────────────────────────
+
+    const [selectedShopItem, setSelectedShopItem] =
+        useState<SnackItemInstance | null>(null);
+
+    /** Buy the selected shop item and place it directly into a machine slot. */
+    const handleShopPlaceInSlot = useCallback(
+        (slotIdx: number) => {
+            const item = selectedShopItem;
+            if (!item || run.coins < item.cost) return;
+            const slot = run.machine.slots[slotIdx];
+            if (!slot?.unlocked || slot.item) return;
+            playSfx("slot-place");
+            // Create a fresh copy with a new instanceId for placement
+            const placed: SnackItemInstance = { ...item, instanceId: generateId() };
+            update((d) => {
+                d.coins -= item.cost;
+                d.machine.slots[slotIdx].item = placed;
+            });
+            // Aged items: mark as sold. Base items: stay in shop.
+            const isAged = draft.aged.some((a) => a.instanceId === item.instanceId);
+            if (isAged) {
+                setDraft((prev) => ({
+                    ...prev,
+                    soldAgedIds: [...prev.soldAgedIds, item.instanceId],
+                }));
+            }
+            setSelectedShopItem(null);
+        },
+        [selectedShopItem, run.coins, run.machine.slots, draft.aged, update, setDraft],
+    );
+
+    /** Buy the selected shop item and send it to the cooler. */
+    const handleShopSendToCooler = useCallback(() => {
+        const item = selectedShopItem;
+        if (!item || run.coins < item.cost || !canAddToCooler(run.cooler, maxCoolerSize(run.upgradeCounts["expand-cooler"]))) return;
+        playSfx("slot-place");
+        const placed: SnackItemInstance = { ...item, instanceId: generateId() };
+        update((d) => {
+            d.coins -= item.cost;
+            d.cooler.push(placed);
+        });
+        // Aged items: mark as sold. Base items: stay in shop.
+        const isAged = draft.aged.some((a) => a.instanceId === item.instanceId);
+        if (isAged) {
+            setDraft((prev) => ({
+                ...prev,
+                soldAgedIds: [...prev.soldAgedIds, item.instanceId],
+            }));
+        }
+        setSelectedShopItem(null);
+    }, [selectedShopItem, run.coins, run.cooler, draft.aged, update, setDraft]);
+
+    const handleBuyPack = useCallback(
+        (pack: PackOffering) => {
+            if (
+                run.coins < pack.totalCost ||
+                !packFitsInCooler(run.cooler, pack, maxCoolerSize(run.upgradeCounts["expand-cooler"]))
+            )
+                return;
+            playSfx("slot-place");
+            update((d) => {
+                d.coins -= pack.totalCost;
+                d.cooler.push(...pack.items);
+            });
+            setDraft((prev) => ({
+                ...prev,
+                packs: prev.packs.filter((p) => p.packId !== pack.packId),
+            }));
+        },
+        [run.coins, run.cooler, update, setDraft],
+    );
+
+    const handleDraftReroll = useCallback(() => {
+        const cost = draftRerollCost(run.round, run.rerollCount);
+        if (run.coins < cost) {
+            playSfx("upgrade-fail");
+            return;
+        }
+        playSfx("slot-select");
+        update((draft) => {
+            draft.coins -= cost;
+            draft.rerollCount += 1;
+        });
+        refreshDraft(run);
+    }, [run, update, refreshDraft]);
+
     const handleSlotClick = useCallback(
         (slot: MachineSlot) => {
             // Allow slot clicks during prep and during restock
@@ -1601,32 +1871,24 @@ export default function App() {
                 return;
             }
 
-            // During restock: place selected item into empty slot
+            // During restock: place selected cooler item into empty slot
             if (restockPending) {
                 if (restockSelectedDef && !slot.item) {
-                    const fresh = createItemInstance(
-                        restockSelectedDef,
-                        "common",
-                    );
-                    const cost = Math.ceil(fresh.cost * 1.5);
-                    if (run.coins < cost) return;
-                    playSfx("slot-place");
                     handleRestockPlace(
                         run.machine.slots.findIndex(
                             (s) =>
                                 s.position.row === slot.position.row &&
                                 s.position.col === slot.position.col,
                         ),
-                        fresh,
+                        restockSelectedDef,
                     );
                     setRestockSelectedDef(null);
                 }
                 return;
             }
 
-            // Place catalogue item into empty slot
-            if (selectedCatalogueItem && !slot.item) {
-                if (run.coins < selectedCatalogueItem.cost) return;
+            // Place cooler item into empty slot
+            if (selectedCoolerItem && !slot.item) {
                 playSfx("slot-place");
                 update((draft) => {
                     const s = getSlot(
@@ -1635,10 +1897,12 @@ export default function App() {
                         slot.position.col,
                     );
                     if (!s) return;
-                    s.item = selectedCatalogueItem;
-                    draft.coins -= selectedCatalogueItem.cost;
+                    s.item = selectedCoolerItem;
+                    draft.cooler = draft.cooler.filter(
+                        (b) => b.instanceId !== selectedCoolerItem.instanceId,
+                    );
                 });
-                setSelectedCatalogueItem(null);
+                setSelectedCoolerItem(null);
                 setSelectedSlotPos(null);
                 return;
             }
@@ -1652,7 +1916,7 @@ export default function App() {
                         ? null
                         : slot.position,
                 );
-                setSelectedCatalogueItem(null);
+                setSelectedCoolerItem(null);
                 return;
             }
 
@@ -1666,10 +1930,10 @@ export default function App() {
             restockPending,
             restockSelectedDef,
             handleRestockPlace,
-            selectedCatalogueItem,
+            selectedCoolerItem,
             pickingFeatured,
             update,
-            setSelectedCatalogueItem,
+            setSelectedCoolerItem,
         ],
     );
 
@@ -1722,7 +1986,9 @@ export default function App() {
         [update],
     );
 
-    const currentRent = rentForRound(run.round, run.rent);
+    const currentRent = run.gameMode === "profiteer"
+        ? 0
+        : Math.max(0, rentForRound(run.round, run.rent) + (run.currentArea?.modifier.rentDelta ?? 0));
 
     // Combo glow: slots that are part of an active combo pair in prep
     const comboSlots = useMemo(() => {
@@ -1760,26 +2026,25 @@ export default function App() {
 
     const handleHover = useCallback(
         (e: React.PointerEvent) => {
-            // Do NOT call ensureAudio here — pointerover/pointermove are not
-            // trusted gestures for AudioContext; only pointerdown/click qualify.
             const target = e.target as HTMLElement;
             if (
                 target.closest("button") ||
-                target.closest(".vm-catalogue__item")
+                target.closest(".vm-catalogue__item") ||
+                target.closest(".sticker:not(.sticker--empty)")
             ) {
                 playSfx("button-hover", { volume: 0.3 });
             }
         },
-        [ensureAudio],
+        [],
     );
 
     // ── Render by phase ──────────────────────────────────
 
     if (run.phase === "menu") {
         return (
-            <div className="GameContainer" onPointerDown={ensureAudio}>
+            <div className="GameContainer" onPointerDown={ensureAudio} onPointerOver={handleHover}>
                 <AudioControls />
-                <div className="GameSurface" onPointerOver={handleHover}>
+                <div className="GameSurface">
                     <MenuScreen onStart={handleStartGame} />
                 </div>
             </div>
@@ -1793,25 +2058,31 @@ export default function App() {
     const activeRecipesForBook = detectActiveRecipes(run.machine);
 
     return (
-        <div className="GameContainer" onPointerDown={ensureAudio}>
+        <div className="GameContainer" onPointerDown={ensureAudio} onPointerOver={handleHover}>
             <AudioControls onQuit={handleNewGame} />
             <div className="GameContainer__row">
-                {/* Sticker tray — vertical left of machine */}
-                <StickerTray
-                    stickers={run.stickers}
-                    maxSlots={run.maxStickerSlots}
-                    onSell={
-                        run.phase === "prep" ? handleSellSticker : undefined
-                    }
-                />
-                <div className="GameSurface" onPointerOver={handleHover}>
-                    {/* Backdrop to dismiss popout on outside click */}
+                <div className="GameContainer__sidebar">
+                    <StickerTray
+                        stickers={run.stickers}
+                        maxSlots={run.maxStickerSlots}
+                        onSell={
+                            run.phase === "prep" ? handleSellSticker : undefined
+                        }
+                    />
+                    {run.phase === "prep" && (
+                        <div className="sidebar-actions">
+                        </div>
+                    )}
+                </div>
+
+                <div className="GameSurface">
                     {selectedSlotPos && run.phase === "prep" && (
                         <div
                             className="vm-popout-backdrop"
                             onClick={() => setSelectedSlotPos(null)}
                         />
                     )}
+
                     <div className="vm-title-bar">
                         <span className="vm-title-bar__text">
                             {"SNACKITEER".split("").map((ch, i) => (
@@ -1827,6 +2098,25 @@ export default function App() {
                             ))}
                         </span>
                     </div>
+
+                    {(run.phase === "prep" || run.phase === "serve") &&
+                        run.currentArea && (
+                            <div className="vm-event-banner-wrap">
+                                <div className="vm-event-banner vm-event-banner--area" style={{ textAlign: "center" }}>
+                                    <span className="vm-event-banner__name">
+                                        Round Area: {run.currentArea.area.name}
+                                    </span>
+                                    <span className="vm-event-banner__desc">
+                                        {run.currentArea.area.flavor}
+                                        {" • "}
+                                        <strong>{run.currentArea.modifier.name}</strong>
+                                        {": "}
+                                        {run.currentArea.modifier.description}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+
                     {(run.phase === "prep" || run.phase === "serve") &&
                         run.roundEvent && (
                             <div className="vm-event-banner-wrap">
@@ -1843,6 +2133,7 @@ export default function App() {
                                 </div>
                             </div>
                         )}
+
                     {pickingFeatured && (
                         <div className="vm-featured-pick-banner">
                             <span>Click a slot to feature it</span>
@@ -1855,46 +2146,73 @@ export default function App() {
                             </button>
                         </div>
                     )}
-                    <div className="vm-content-row">
-                        <VendingMachine
-                            slots={run.machine.slots}
-                            coins={run.coins}
-                            round={run.round}
-                            rent={currentRent}
-                            gameMode={run.gameMode}
-                            profitTarget={
-                                run.gameMode === "profiteer"
-                                    ? profiteerTarget(run.round)
-                                    : null
-                            }
-                            machineHp={run.machineHp}
-                            maxMachineHp={run.maxMachineHp}
-                            selectedSlotPos={
-                                run.phase === "prep" ? selectedSlotPos : null
-                            }
-                            highlightNextLocked={highlightNextLocked}
-                            floaters={fx.floaters}
-                            shaking={shaking}
-                            headerExtra={null}
-                            serveMatchSlots={serveMatchSlots}
-                            comboSlots={comboSlots}
-                            onSlotClick={handleSlotClick}
-                            onTrash={handleTrash}
-                            onPriceAdjust={
-                                run.phase === "prep"
-                                    ? handlePriceAdjust
-                                    : undefined
-                            }
-                            onRepair={
-                                run.phase === "prep" ? handleRepair : undefined
-                            }
-                        />
 
-                        <div className="vm-below-machine">
-                            {/* Start round button — always in stable position during prep */}
-                            {run.phase === "prep" && (
-                                <>
-                                    {run.gameMode === "retirement" && (
+                    <div className="vm-content-row">
+                        <div className="vm-main-column">
+                            <VendingMachine
+                                slots={run.machine.slots}
+                                coins={run.coins}
+                                round={run.round}
+                                rent={currentRent}
+                                gameMode={run.gameMode}
+                                profitTarget={
+                                    run.gameMode === "profiteer"
+                                        ? profiteerTarget(run.round)
+                                        : null
+                                }
+                                machineHp={run.machineHp}
+                                maxMachineHp={run.maxMachineHp}
+                                selectedSlotPos={
+                                    run.phase === "prep" ? selectedSlotPos : null
+                                }
+                                highlightNextLocked={highlightNextLocked}
+                                floaters={fx.floaters}
+                                shaking={shaking}
+                                headerExtra={null}
+                                actionSlot={
+                                    run.phase === "prep" ? (
+                                        <div className="vm-prep-actions vm-prep-actions--start">
+                                            <button
+                                                type="button"
+                                                className="vm-start-round"
+                                                onClick={() => setShopOpen(true)}
+                                            >
+                                                Stock Machine
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={`vm-shop-btn ${upgradeOpen ? "vm-shop-btn--active" : ""}`}
+                                                onClick={() => setUpgradeOpen((open) => !open)}
+                                            >
+                                                Upgrades
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={`vm-shop-btn ${coolerOpen ? "vm-shop-btn--active" : ""}`}
+                                                onClick={() => setCoolerOpen((o) => !o)}
+                                            >
+                                                Cooler ({run.cooler.length}/{maxCoolerSize(run.upgradeCounts["expand-cooler"])})
+                                            </button>
+                                        </div>
+                                    ) : undefined
+                                }
+                                serveMatchSlots={serveMatchSlots}
+                                comboSlots={comboSlots}
+                                onSlotClick={handleSlotClick}
+                                onTrash={handleTrash}
+                                onPriceAdjust={
+                                    run.phase === "prep"
+                                        ? handlePriceAdjust
+                                        : undefined
+                                }
+                                onRepair={
+                                    run.phase === "prep" ? handleRepair : undefined
+                                }
+                            />
+
+                            <div className="vm-below-machine">
+                                {run.phase === "prep" &&
+                                    run.gameMode === "retirement" && (
                                         <p className="vm-mode-info vm-mode-info--retirement">
                                             🏦 {run.coins}/{RETIREMENT_GOAL}¢ —{" "}
                                             {Math.min(
@@ -1908,174 +2226,153 @@ export default function App() {
                                             % to retirement
                                         </p>
                                     )}
-                                    <CustomerQueuePreview
-                                        round={run.round}
-                                        roundEvent={run.roundEvent}
-                                        magnetCount={0}
-                                    />
-                                    <div className="vm-prep-actions vm-prep-actions--start">
-                                        <button
-                                            type="button"
-                                            className="vm-start-round"
-                                            onClick={handleStartRound}
-                                        >
-                                            Start Round {run.round}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className={`vm-upgrades-btn ${upgradeOpen ? "vm-upgrades-btn--active" : ""}`}
-                                            onClick={() =>
-                                                setUpgradeOpen((o) => !o)
-                                            }
-                                        >
-                                            Upgrades
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className={`vm-upgrades-btn ${recipeBookOpen ? "vm-upgrades-btn--active" : ""}`}
-                                            onClick={() =>
-                                                setRecipeBookOpen((o) => !o)
-                                            }
-                                        >
-                                            Combos{" "}
-                                            {run.discoveredRecipes.length > 0
-                                                ? `(${run.discoveredRecipes.length})`
-                                                : ""}
-                                        </button>
-                                    </div>
-                                </>
-                            )}
 
-                            {/* Catalogue slides in/out based on phase */}
-                            <div
-                                className={`vm-catalogue-wrapper ${run.phase === "prep" ? "vm-catalogue-wrapper--visible" : "vm-catalogue-wrapper--hidden"}`}
-                            >
-                                <CataloguePanel
-                                    catalogue={catalogue}
-                                    coins={run.coins}
-                                    selectedItem={selectedCatalogueItem}
-                                    onSelectItem={setSelectedCatalogueItem}
-                                />
-                            </div>
-
-                            {/* Serve phase — narration typewriter */}
-                            {run.phase === "serve" &&
-                                serve.runId > 0 &&
-                                !restockPending && (
-                                    <>
-                                        {!narrationDone && (
-                                            <button
-                                                type="button"
-                                                className="vm-narration__skip"
-                                                onClick={skipNarration}
-                                            >
-                                                Skip {">>"}
-                                            </button>
-                                        )}
-                                        <div className="vm-narration">
-                                            {nfx.floaters.length > 0 && (
-                                                <div
-                                                    className="vm-narration__fx"
-                                                    aria-hidden
-                                                >
-                                                    {nfx.floaters.map((f) => (
-                                                        <span
-                                                            key={f.id}
-                                                            className="vm-narration__floater"
-                                                            style={{
-                                                                ["--fx-offset-x" as string]: `${f.offsetX}px`,
-                                                                ["--fx-delay" as string]: `${f.delayMs}ms`,
-                                                            }}
-                                                        >
-                                                            {f.text}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            )}
-                                            {visibleLines.map((line, i) => (
-                                                <p
-                                                    key={`${i}-${line.text.length}`}
-                                                    className={`vm-narration__line ${line.className ?? ""}`}
-                                                >
-                                                    {line.text}
-                                                    {i ===
-                                                        visibleLines.length -
-                                                            1 && (
-                                                        <span className="vm-narration__cursor">
-                                                            ▌
-                                                        </span>
-                                                    )}
-                                                </p>
-                                            ))}
-                                            <div ref={narrationEndRef} />
-                                        </div>
-                                    </>
-                                )}
-
-                            {/* Mid-round restock UI */}
-                            {restockPending && (
-                                <div className="vm-restock">
-                                    <h3 className="vm-restock__title">
-                                        {">>"} EMERGENCY RESTOCK
-                                    </h3>
-                                    <p className="vm-restock__subtitle">
-                                        {restockSelectedDef
-                                            ? `Now click an empty slot to place ${restockSelectedDef.name}.`
-                                            : "Pick an item below, then click an empty slot on the machine."}
-                                    </p>
-                                    <p className="vm-restock__coins">
-                                        Coins: {run.coins}¢
-                                    </p>
-                                    <div className="vm-restock__items">
-                                        {STARTER_ITEM_DEFS.map((def) => {
-                                            const item = createItemInstance(
-                                                def,
-                                                "common",
-                                            );
-                                            const restockCost = Math.ceil(item.cost * 1.5);
-                                            const canAfford =
-                                                run.coins >= restockCost;
-                                            const isSelected =
-                                                restockSelectedDef?.defId ===
-                                                def.defId;
-                                            return (
+                                {run.phase === "serve" &&
+                                    serve.runId > 0 &&
+                                    !restockPending && (
+                                        <>
+                                            {!narrationDone && (
                                                 <button
-                                                    key={def.defId}
                                                     type="button"
-                                                    className={`vm-restock__item ${!canAfford ? "vm-restock__item--disabled" : ""} ${isSelected ? "vm-restock__item--selected" : ""}`}
-                                                    disabled={!canAfford}
-                                                    onClick={() => {
-                                                        setRestockSelectedDef(
-                                                            isSelected
-                                                                ? null
-                                                                : def,
-                                                        );
-                                                    }}
+                                                    className="vm-narration__skip"
+                                                    onClick={skipNarration}
                                                 >
-                                                    <span className="vm-restock__item-name">
-                                                        {def.name}
-                                                    </span>
-                                                    <span className="vm-restock__item-cost">
-                                                        {restockCost}¢
-                                                    </span>
+                                                    Skip {">>"}
                                                 </button>
-                                            );
-                                        })}
+                                            )}
+                                            <div className="vm-narration">
+                                                {nfx.floaters.length > 0 && (
+                                                    <div
+                                                        className="vm-narration__fx"
+                                                        aria-hidden
+                                                    >
+                                                        {nfx.floaters.map((f) => (
+                                                            <span
+                                                                key={f.id}
+                                                                className="vm-narration__floater"
+                                                                style={{
+                                                                    ["--fx-offset-x" as string]: `${f.offsetX}px`,
+                                                                    ["--fx-delay" as string]: `${f.delayMs}ms`,
+                                                                }}
+                                                            >
+                                                                {f.text}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {visibleLines.map((line, i) => (
+                                                    <p
+                                                        key={`${i}-${line.text.length}`}
+                                                        className={`vm-narration__line ${line.className ?? ""}`}
+                                                    >
+                                                        {line.text}
+                                                        {i ===
+                                                            visibleLines.length -
+                                                                1 && (
+                                                            <span className="vm-narration__cursor">
+                                                                ▌
+                                                            </span>
+                                                        )}
+                                                    </p>
+                                                ))}
+                                                <div ref={narrationEndRef} />
+                                            </div>
+                                        </>
+                                    )}
+
+                                {restockPending && (
+                                    <div className="vm-restock">
+                                        <h3 className="vm-restock__title">
+                                            {">>"} EMERGENCY RESTOCK
+                                        </h3>
+                                        <p className="vm-restock__subtitle">
+                                            {run.cooler.length === 0
+                                                ? "Your cooler is empty — nothing to restock with!"
+                                                : restockSelectedDef
+                                                  ? `Place ${restockSelectedDef.name} in an empty slot:`
+                                                  : "Pick a cooler item below, then place it in a slot."}
+                                        </p>
+                                        <div className="vm-restock__items">
+                                            {run.cooler.map((item) => {
+                                                const isSelected =
+                                                    restockSelectedDef?.instanceId ===
+                                                    item.instanceId;
+
+                                                return (
+                                                    <button
+                                                        key={item.instanceId}
+                                                        type="button"
+                                                        className={`vm-restock__item ${isSelected ? "vm-restock__item--selected" : ""}`}
+                                                        onClick={() => {
+                                                            setRestockSelectedDef(
+                                                                isSelected
+                                                                    ? null
+                                                                    : item,
+                                                            );
+                                                        }}
+                                                    >
+                                                        <span className="vm-restock__item-name">
+                                                            {item.name}
+                                                        </span>
+                                                        <span
+                                                            className={`vm-restock__item-quality vm-restock__item-quality--${item.quality}`}
+                                                        >
+                                                            {item.quality}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="vm-shop-grid">
+                                            {run.machine.slots.map((slot, idx) => {
+                                                const empty = slot.unlocked && !slot.item;
+                                                const active = !!restockSelectedDef;
+                                                return (
+                                                    <button
+                                                        type="button"
+                                                        key={idx}
+                                                        className={`vm-shop-grid__cell ${!slot.unlocked ? "vm-shop-grid__cell--locked" : ""} ${slot.item ? "vm-shop-grid__cell--full" : ""} ${empty ? "vm-shop-grid__cell--empty" : ""} ${!active ? "vm-shop-grid__cell--inactive" : ""}`}
+                                                        disabled={!empty || !active}
+                                                        onClick={() => {
+                                                            if (restockSelectedDef && empty) {
+                                                                handleRestockPlace(idx, restockSelectedDef);
+                                                                setRestockSelectedDef(null);
+                                                            }
+                                                        }}
+                                                        title={
+                                                            slot.item
+                                                                ? slot.item.name
+                                                                : slot.unlocked
+                                                                  ? "Empty"
+                                                                  : "Locked"
+                                                        }
+                                                    >
+                                                        {slot.item ? (
+                                                            <span className="vm-shop-grid__name">
+                                                                {(slot.item.baseName ?? slot.item.name).slice(0, 3)}
+                                                            </span>
+                                                        ) : slot.unlocked ? (
+                                                            "+"
+                                                        ) : (
+                                                            "🔒"
+                                                        )}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="vm-restock__continue"
+                                            onClick={handleRestockContinue}
+                                        >
+                                            Continue Serving {">"}
+                                        </button>
                                     </div>
-                                    <button
-                                        type="button"
-                                        className="vm-restock__continue"
-                                        onClick={handleRestockContinue}
-                                    >
-                                        Continue Serving {">"}
-                                    </button>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </div>
                     </div>
-                    {/* /vm-content-row */}
 
-                    {/* Upgrade popover overlay */}
                     {upgradeOpen && (
                         <div
                             className="vm-upgrade-popover"
@@ -2086,27 +2383,25 @@ export default function App() {
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 <h4 className="vm-upgrades__title">Upgrades</h4>
+                                <span className="vm-coins" style={{ fontSize: 'clamp(9px, 2vw, 12px)', alignSelf: 'center' }}>🪙 {run.coins}¢</span>
                                 {UPGRADE_DEFS.map((def) => {
                                     const count = run.upgradeCounts[def.id];
-                                    const isFeatured =
-                                        def.id === "feature-slot";
+                                    const isFeatured = def.id === "feature-slot";
                                     const owned = isFeatured && count >= 1;
                                     const maxed =
                                         !isFeatured &&
                                         count >= def.maxPurchases;
                                     const cost =
                                         maxed || owned ? 0 : def.cost(count);
-                                    const canAfford =
-                                        owned || run.coins >= cost;
+                                    const canAfford = owned || run.coins >= cost;
+
                                     return (
                                         <button
                                             type="button"
                                             key={def.id}
                                             className={`vm-upgrades__btn ${maxed ? "vm-upgrades__btn--maxed" : ""}${owned ? " vm-upgrades__btn--owned" : ""}`}
                                             disabled={maxed || !canAfford}
-                                            onClick={() =>
-                                                handleUpgrade(def.id)
-                                            }
+                                            onClick={() => handleUpgrade(def.id)}
                                             onPointerEnter={() =>
                                                 handleUpgradeHover(def.id)
                                             }
@@ -2145,7 +2440,6 @@ export default function App() {
                         </div>
                     )}
 
-                    {/* Recipe book popover */}
                     {recipeBookOpen && (
                         <div
                             className="vm-upgrade-popover"
@@ -2165,21 +2459,18 @@ export default function App() {
                                 )}
                                 {RECIPE_DEFS.map((recipe) => {
                                     const discovered =
-                                        run.discoveredRecipes.includes(
-                                            recipe.id,
-                                        );
+                                        run.discoveredRecipes.includes(recipe.id);
                                     const active = activeRecipesForBook.some(
                                         (r) => r.id === recipe.id,
                                     );
+
                                     return (
                                         <div
                                             key={recipe.id}
                                             className={`vm-recipe-book__entry ${discovered ? "vm-recipe-book__entry--found" : "vm-recipe-book__entry--hidden"} ${active ? "vm-recipe-book__entry--active" : ""}`}
                                         >
                                             <span className="vm-recipe-book__name">
-                                                {discovered
-                                                    ? recipe.name
-                                                    : "???"}
+                                                {discovered ? recipe.name : "???"}
                                             </span>
                                             <span className="vm-recipe-book__desc">
                                                 {discovered
@@ -2210,7 +2501,67 @@ export default function App() {
                         </div>
                     )}
 
-                    {/* Round summary overlay */}
+                    {shopOpen && run.phase === "prep" && (
+                        <div
+                            className="vm-shop-popover"
+                            onClick={() => setShopOpen(false)}
+                        >
+                            <div
+                                className="vm-shop-popover__card"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <DraftPanel
+                                    draft={draft}
+                                    coins={run.coins}
+                                    cooler={run.cooler}
+                                    slots={run.machine.slots}
+                                    round={run.round}
+                                    rerollCount={run.rerollCount}
+                                    selectedShopItem={selectedShopItem}
+                                    maxCooler={maxCoolerSize(run.upgradeCounts["expand-cooler"])}
+                                    onSelectItem={setSelectedShopItem}
+                                    onPlaceInSlot={handleShopPlaceInSlot}
+                                    onSendToCooler={handleShopSendToCooler}
+                                    onBuyPack={handleBuyPack}
+                                    onReroll={handleDraftReroll}
+                                />
+                                <button
+                                    type="button"
+                                    className="vm-start-round"
+                                    onClick={() => { setShopOpen(false); handleStartRound(); }}
+                                >
+                                    Start Round {run.round}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {coolerOpen && run.phase === "prep" && (
+                        <div
+                            className="vm-shop-popover"
+                            onClick={() => setCoolerOpen(false)}
+                        >
+                            <div
+                                className="vm-shop-popover__card"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <CoolerPanel
+                                    cooler={run.cooler}
+                                    maxCooler={maxCoolerSize(run.upgradeCounts["expand-cooler"])}
+                                    selectedItem={selectedCoolerItem}
+                                    onSelect={setSelectedCoolerItem}
+                                />
+                                <button
+                                    type="button"
+                                    className="vm-shop-popover__close"
+                                    onClick={() => setCoolerOpen(false)}
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {run.phase === "summary" && run.lastSummary && (
                         <RoundSummary
                             summary={run.lastSummary}
@@ -2220,7 +2571,6 @@ export default function App() {
                         />
                     )}
 
-                    {/* Game over */}
                     {run.phase === "game-over" && (
                         <div className="vm-game-over">
                             <h3>Game Over</h3>
@@ -2236,6 +2586,7 @@ export default function App() {
                                     const target = profiteerTarget(run.round);
                                     const net = run.lastSummary.netProfit;
                                     const shortfall = target - net;
+
                                     return (
                                         <div className="vm-game-over__profit-breakdown">
                                             <p className="vm-game-over__row">
@@ -2271,7 +2622,6 @@ export default function App() {
                         </div>
                     )}
 
-                    {/* Win screen */}
                     {run.phase === "win" && (
                         <div className="vm-game-over vm-game-over--win">
                             <h3>🎉 You Retired Rich!</h3>
@@ -2288,7 +2638,6 @@ export default function App() {
                         </div>
                     )}
 
-                    {/* Sticker shop (end of round reward) */}
                     {run.phase === "sticker-shop" &&
                         stickerShopOptions.length > 0 && (
                             <StickerShopScreen
@@ -2306,7 +2655,6 @@ export default function App() {
                         )}
                 </div>
             </div>
-            {/* /GameContainer__row */}
         </div>
     );
 }

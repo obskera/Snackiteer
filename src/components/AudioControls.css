@@ -95,7 +95,7 @@
     letter-spacing: 1px;
     padding: 6px 0;
     cursor: pointer;
-    margin-top: 4px;
+    margin-top: 10px;
     box-shadow: 0 4px 0 #ff5555, 0 6px 8px rgba(0, 0, 0, 0.3);
     transition: transform 0.1s;
 }

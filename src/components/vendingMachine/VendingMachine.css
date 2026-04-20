@@ -18,6 +18,10 @@
     --text-price: #39ff14;
     --text-dim: #555;
 
+    /* Scale machine pixel unit to viewport height so it always leaves
+       room for the catalogue.  Range: 2.5px … 4px, driven by dvh. */
+    --px: clamp(2.5px, 0.55dvh, 4px);
+
     image-rendering: pixelated;
     font-family: monospace;
     background: var(--machine-bg);
@@ -30,6 +34,7 @@
     gap: calc(var(--px) * 3);
     user-select: none;
     align-items: stretch;
+    flex-shrink: 0;
 }
 
 /* ── Kick shake ────────────────────────────────────────── */
@@ -76,6 +81,7 @@
 .vm-coins {
     color: #ffd700;
     font-size: calc(var(--px) * 3);
+    padding: calc(var(--px) * 1) calc(var(--px) * 2);
     text-shadow: 0 0 calc(var(--px) * 2) #ffd70066;
     transition: transform 0.15s ease;
 }
@@ -156,6 +162,7 @@
     border: 3px solid #39ff14;
     border-radius: calc(var(--px) * 3);
     padding: calc(var(--px) * 2);
+    margin-bottom: 12px;
     box-shadow:
         0 8px 0 #39ff14,
         0 12px 12px rgba(0, 0, 0, 0.4);
@@ -194,6 +201,19 @@
 
 .vm-slot:active:not(.vm-slot--locked) {
     box-shadow: inset 0 0 calc(var(--px) * 2) var(--neon-glow);
+}
+
+/* Slot number badge */
+.vm-slot__number {
+    position: absolute;
+    top: calc(var(--px) * 0.5);
+    left: calc(var(--px) * 0.5);
+    font-size: calc(var(--px) * 2.5);
+    color: var(--neon-dim);
+    opacity: 0.5;
+    pointer-events: none;
+    line-height: 1;
+    z-index: 1;
 }
 
 /* Locked slot */

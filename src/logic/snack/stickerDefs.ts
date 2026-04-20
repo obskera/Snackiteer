@@ -28,7 +28,7 @@ export const STICKER_DEFS: StickerDef[] = [
     {
         id: "top-shelf",
         name: "Top Shelf",
-        description: "Row 1 sales +2¢ each",
+        description: "Slot 1-3 sales +2¢ each",
         rarity: "common",
         trigger: "on-sale",
         resolve: (ctx) => ({ addCoins: ctx.soldSlotRow === 0 ? 2 : 0 }),
@@ -36,7 +36,7 @@ export const STICKER_DEFS: StickerDef[] = [
     {
         id: "bottom-feeder",
         name: "Bottom Feeder",
-        description: "Row 3 sales ×1.3",
+        description: "Slot 7-9 sales ×1.3",
         rarity: "common",
         trigger: "on-sale",
         resolve: (ctx) => ({ mult: ctx.soldSlotRow === 2 ? 1.3 : 1 }),
@@ -44,7 +44,7 @@ export const STICKER_DEFS: StickerDef[] = [
     {
         id: "left-hook",
         name: "Left Hook",
-        description: "Column 1 sales +3¢",
+        description: "Slot 1, 4, 7 sales +3¢",
         rarity: "common",
         trigger: "on-sale",
         resolve: (ctx) => ({ addCoins: ctx.soldSlotCol === 0 ? 3 : 0 }),
@@ -52,7 +52,7 @@ export const STICKER_DEFS: StickerDef[] = [
     {
         id: "right-deal",
         name: "Right Deal",
-        description: "Column 3 sales +3¢",
+        description: "Slot 3, 6, 9 sales +3¢",
         rarity: "common",
         trigger: "on-sale",
         resolve: (ctx) => ({ addCoins: ctx.soldSlotCol === 2 ? 3 : 0 }),
@@ -60,7 +60,7 @@ export const STICKER_DEFS: StickerDef[] = [
     {
         id: "center-stage",
         name: "Center Stage",
-        description: "Center slot (2,2) sales ×1.5",
+        description: "Slot 5 sales ×1.5",
         rarity: "uncommon",
         trigger: "on-sale",
         resolve: (ctx) => ({ mult: (ctx.soldSlotRow === 1 && ctx.soldSlotCol === 1) ? 1.5 : 1 }),
@@ -68,7 +68,7 @@ export const STICKER_DEFS: StickerDef[] = [
     {
         id: "corner-pocket",
         name: "Corner Pocket",
-        description: "Corner slot sales +4¢",
+        description: "Slot 1, 3, 7, 9 sales +4¢",
         rarity: "uncommon",
         trigger: "on-sale",
         resolve: (ctx) => {
@@ -113,7 +113,7 @@ export const STICKER_DEFS: StickerDef[] = [
     {
         id: "edge-runner",
         name: "Edge Runner",
-        description: "Edge slots (non-center) +1¢",
+        description: "All slots except Slot 5 +1¢",
         rarity: "common",
         trigger: "on-sale",
         resolve: (ctx) => {
@@ -124,7 +124,7 @@ export const STICKER_DEFS: StickerDef[] = [
     {
         id: "diagonal-ace",
         name: "Diagonal Ace",
-        description: "If a diagonal line sells, +15¢",
+        description: "If Slot 1-5-9 or 3-5-7 all sell, +15¢",
         rarity: "rare",
         trigger: "round-end",
         resolve: (ctx) => {
@@ -527,14 +527,6 @@ export const STICKER_DEFS: StickerDef[] = [
         resolve: (ctx) => ({ addCoins: ctx.totalStocked >= 4 ? 5 : 0 }),
     },
     {
-        id: "rent-negotiator",
-        name: "Rent Negotiator",
-        description: "Rent -3¢",
-        rarity: "uncommon",
-        trigger: "passive",
-        resolve: () => ({ rentReduction: 3 }),
-    },
-    {
         id: "silver-tongue",
         name: "Silver Tongue",
         description: "+15% buy chance for all customers",
@@ -557,14 +549,6 @@ export const STICKER_DEFS: StickerDef[] = [
         rarity: "common",
         trigger: "passive",
         resolve: () => ({}), // Handled in restock logic
-    },
-    {
-        id: "loan-shark",
-        name: "Loan Shark",
-        description: "+15¢ per round, but rent +5¢",
-        rarity: "rare",
-        trigger: "round-end",
-        resolve: () => ({ addCoins: 15, rentReduction: -5 }),
     },
     {
         id: "golden-touch",
@@ -848,7 +832,7 @@ export const STICKER_DEFS: StickerDef[] = [
     {
         id: "synergy",
         name: "Synergy",
-        description: "Adjacent same-type items +2¢ each sale",
+        description: "Neighboring same-type slots +2¢ each sale",
         rarity: "uncommon",
         trigger: "on-sale",
         resolve: (ctx) => {
@@ -940,13 +924,13 @@ export const STICKER_DEFS: StickerDef[] = [
     {
         id: "copy-cat",
         name: "Copy Cat",
-        description: "Copies the leftmost sticker's effect",
+        description: "Copies the first sticker's effect",
         rarity: "legendary",
         trigger: "scoring",
         resolve: (ctx) => {
-            const leftmost = ctx.stickers.find(s => s.defId !== "copy-cat");
-            if (!leftmost) return {};
-            const def = STICKER_DEFS.find(d => d.id === leftmost.defId);
+            const first = ctx.stickers.find(s => s.defId !== "copy-cat");
+            if (!first) return {};
+            const def = STICKER_DEFS.find(d => d.id === first.defId);
             return def ? def.resolve(ctx) : {};
         },
     },
@@ -1105,14 +1089,6 @@ export const STICKER_DEFS: StickerDef[] = [
             }
             return {};
         },
-    },
-    {
-        id: "tax-haven",
-        name: "Tax Haven",
-        description: "Rent is halved",
-        rarity: "legendary",
-        trigger: "passive",
-        resolve: () => ({ rentReduction: 999 }), // Capped to half in engine
     },
     {
         id: "supernova",

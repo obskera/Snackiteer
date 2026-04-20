@@ -14,6 +14,9 @@ export type {
     Customer,
     CatalogueState,
     CatalogueOffering,
+    PackDef,
+    PackOffering,
+    DraftOffering,
     RoundEventDef,
     GamePhase,
     RoundSummary,
@@ -27,8 +30,11 @@ export {
     QUALITY_PRICE_MULT,
     SPENDING_TYPE_PRICE_TOLERANCE,
     RETIREMENT_GOAL,
+    PROFITEER_ROUNDS,
     profiteerTarget,
     MAX_COINS,
+    BASE_COOLER_SIZE,
+    COOLER_SIZE_PER_UPGRADE,
 } from "./snackTypes";
 
 export { STARTER_ITEM_DEFS, getItemDef } from "./itemDefs";
@@ -55,6 +61,17 @@ export {
 
 export { resolveServePhase, advanceToNextRound } from "./servePhase";
 
+// ── Pack & draft shop ─────────────────────────────────────
+export { PACK_DEFS, getPackDef } from "./packDefs";
+export {
+    generateDraftOffering,
+    maxCoolerSize,
+    canAddToCooler,
+    coolerSpaceLeft,
+    packFitsInCooler,
+    draftRerollCost,
+} from "./draftShop";
+
 // ── Item evolution ────────────────────────────────────────
 export type { EvolutionResult } from "./itemEvolution";
 export {
@@ -64,6 +81,16 @@ export {
     EVO_NARRATION,
     AGE_DISPLAY,
 } from "./itemEvolution";
+
+// ── Area system ────────────────────────────────────────────
+export type { AreaDef, AreaModifier, RoundArea } from "./areaDefs";
+export {
+    AREA_POOL,
+    MODIFIER_POOL,
+    rollAreaSequence,
+    rollAreaModifier,
+    rollRoundArea,
+} from "./areaDefs";
 
 // ── Discovery recipes ─────────────────────────────────────
 export type { RecipeDef } from "./discoveryRecipes";

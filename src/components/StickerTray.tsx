@@ -26,7 +26,7 @@ const EDITION_BORDERS: Record<string, string> = {
     normal: "",
     foil: "sticker--foil",
     holographic: "sticker--holo",
-    polychrome: "sticker--poly",
+    chromatix: "sticker--chromatix",
     negative: "sticker--negative",
     golden: "sticker--golden",
 };

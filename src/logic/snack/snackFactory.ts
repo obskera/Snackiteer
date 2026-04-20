@@ -1,4 +1,5 @@
 import { generateId } from "@/logic/entity/Entity";
+import { rollAreaSequence, rollRoundArea } from "./areaDefs";
 import type {
     CatalogueOffering,
     CatalogueState,
@@ -130,6 +131,7 @@ export const createRunState = (
         "better-catalogue": 0,
         "reinforce-machine": 0,
         "feature-slot": 0,
+        "expand-cooler": 0,
     },
     rerollCount: 0,
     stickers: [],
@@ -137,6 +139,9 @@ export const createRunState = (
     profitStreak: 0,
     discoveredRecipes: [],
     lockedStickerDefId: null,
+    cooler: [],
+    areaSequence: [],
+    currentArea: null,
 });
 
 // ── Price dial ───────────────────────────────────────────
@@ -219,6 +224,13 @@ export const UPGRADE_DEFS: UpgradeDef[] = [
         description: "Pick a slot to feature — customers love it",
         cost: () => 10,
         maxPurchases: 1,
+    },
+    {
+        id: "expand-cooler",
+        name: "Bigger Cooler",
+        description: "+2 cooler slots for holding items",
+        cost: (n) => 8 + n * 6,
+        maxPurchases: 3,
     },
 ];
 

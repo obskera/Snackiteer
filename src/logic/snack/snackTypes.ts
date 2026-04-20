@@ -106,7 +106,13 @@ export type Customer = {
     preference: ItemTag | null;
 };
 
-// ── Catalogue & upgrades ─────────────────────────────────
+// ── Cooler (holding area between shop and machine) ────
+/** Starting cooler capacity before upgrades. */
+export const BASE_COOLER_SIZE = 4;
+/** Extra cooler slots per expand-cooler upgrade. */
+export const COOLER_SIZE_PER_UPGRADE = 2;
+
+// ── Catalogue & draft ────────────────────────────────────
 export type CatalogueState = {
     /** Quality tiers currently available for purchase in the catalogue. */
     unlockedQualities: ItemQuality[];
@@ -116,12 +122,46 @@ export type CatalogueOffering = {
     items: SnackItemInstance[];
 };
 
+// ── Pack definitions (bundle deals) ──────────────────────
+export type PackDef = {
+    id: string;
+    name: string;
+    /** Item defIds in this pack. */
+    contents: string[];
+    /** Quality override for items (null = random from unlocked). */
+    quality: ItemQuality | null;
+    /** Cost multiplier vs buying items individually (< 1 = discount). */
+    costMult: number;
+    /** Flavor text / hint. */
+    hint: string;
+};
+
+/** A concrete pack offering with pre-rolled items and a total price. */
+export type PackOffering = {
+    packId: string;
+    name: string;
+    items: SnackItemInstance[];
+    totalCost: number;
+    hint: string;
+};
+
+/** The draft hand shown each round: a mix of single items and packs. */
+export type DraftOffering = {
+    singles: SnackItemInstance[];
+    /** Pre-aged items (one-time purchase, greyed out once sold). */
+    aged: SnackItemInstance[];
+    /** Instance IDs of aged items already sold this round. */
+    soldAgedIds: string[];
+    packs: PackOffering[];
+};
+
 // ── Upgrades ─────────────────────────────────────────────
 export type UpgradeId =
     | "unlock-slot"
     | "better-catalogue"
     | "reinforce-machine"
-    | "feature-slot";
+    | "feature-slot"
+    | "expand-cooler";
 
 export type UpgradeDef = {
     id: UpgradeId;
@@ -154,12 +194,16 @@ export type RoundEventDef = {
 };
 
 import type { StickerInstance } from "./stickerTypes";
+import type { RoundArea, AreaDef } from "./areaDefs";
 
 // ── Game mode & win conditions ────────────────────────────
 export type GameMode = "retirement" | "profiteer";
 
 /** Retirement: accumulate this many coins to win. */
 export const RETIREMENT_GOAL = 300;
+
+/** Profiteer: survive this many rounds (meeting each target) to win. */
+export const PROFITEER_ROUNDS = 10;
 
 /** Profiteer: net-profit target for a given round. */
 export const profiteerTarget = (round: number): number =>
@@ -224,4 +268,10 @@ export type RunState = {
     discoveredRecipes: string[];
     /** Locked sticker def ID — guaranteed to appear in next sticker shop. Max 1. */
     lockedStickerDefId: string | null;
+    /** Cooler: items bought but not yet placed in the machine. */
+    cooler: SnackItemInstance[];
+    /** Pre-rolled area sequence for the run (one per round). */
+    areaSequence: AreaDef[];
+    /** Current round's area + sub-modifier. */
+    currentArea: RoundArea | null;
 };

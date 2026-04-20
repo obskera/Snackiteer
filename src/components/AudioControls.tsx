@@ -10,6 +10,7 @@ import {
     shuffleBgm,
     playSfx,
 } from "@/services/sfx";
+import { HowToPlayButton } from "@/components/HowToPlay";
 import "./AudioControls.css";
 
 export function AudioControls({ onQuit }: { onQuit?: () => void }) {
@@ -90,6 +91,7 @@ export function AudioControls({ onQuit }: { onQuit?: () => void }) {
                     >
                         ⏭ Shuffle BGM
                     </button>
+                    <HowToPlayButton />
                     {onQuit && (
                         <button
                             type="button"

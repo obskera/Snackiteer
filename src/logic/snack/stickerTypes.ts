@@ -23,7 +23,7 @@ export type StickerEdition =
     | "normal"
     | "foil"
     | "holographic"
-    | "polychrome"
+    | "chromatix"
     | "negative"
     | "golden";
 
@@ -31,7 +31,7 @@ export const EDITION_WEIGHTS: Record<StickerEdition, number> = {
     normal: 80,
     foil: 8,
     holographic: 5,
-    polychrome: 3,
+    chromatix: 3,
     negative: 2,
     golden: 2,
 };
@@ -52,7 +52,7 @@ export const EDITION_BONUSES: Record<StickerEdition, EditionBonus> = {
     normal:      { label: "",            passiveCoins: 0, sellBonus: 0,  effectMult: 1,   freeSlot: false },
     foil:        { label: "Foil",        passiveCoins: 5, sellBonus: 0,  effectMult: 1,   freeSlot: false },
     holographic: { label: "Holo",        passiveCoins: 0, sellBonus: 10, effectMult: 1,   freeSlot: false },
-    polychrome:  { label: "Polychrome",  passiveCoins: 0, sellBonus: 0,  effectMult: 1.5, freeSlot: false },
+    chromatix:   { label: "Chromatix",  passiveCoins: 0, sellBonus: 0,  effectMult: 1.5, freeSlot: false },
     negative:    { label: "Negative",    passiveCoins: 0, sellBonus: 0,  effectMult: 1,   freeSlot: true  },
     golden:      { label: "Golden",      passiveCoins: 3, sellBonus: 0,  effectMult: 1,   freeSlot: false },
 };

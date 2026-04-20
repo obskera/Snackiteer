@@ -5,7 +5,7 @@ export const STARTER_ITEM_DEFS: SnackItemDef[] = [
     {
         defId: "soda-can",
         name: "Soda Can",
-        tags: ["drink", "sweet"],
+        tags: ["drink", "sweet", "refreshing"],
         baseCost: 3,
         basePrice: 5,
     },
@@ -26,7 +26,7 @@ export const STARTER_ITEM_DEFS: SnackItemDef[] = [
     {
         defId: "energy-drink",
         name: "Energy Drink",
-        tags: ["drink", "sour"],
+        tags: ["drink", "sweet", "sour", "refreshing"],
         baseCost: 4,
         basePrice: 7,
     },
