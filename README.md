@@ -1,52 +1,39 @@
-# UrsaManus
+# Snackiteer
 
-UrsaManus is a lightweight, modular game engine foundation built with React and TypeScript.
+Snackiteer is a vending machine roguelike game built for game a game jam. Stock your machine, serve demanding customers, and chase combos to stay in business.
 
-It is designed for small projects that need a clean core today, with architecture that can scale into much larger systems over time.
+## How It Works
 
-## Vision
+The game runs in rounds, each with two phases:
 
-UrsaManus is intentionally small at its core:
+**Prep Phase** -- Open the shop via "Stock Machine" to buy snacks and place them in your 3x3 vending machine grid. Stash extras in the cooler for emergency restocks mid-round. Spend coins on upgrades (more slots, better stock, reinforced machine) before you start serving.
 
-- Small enough to understand quickly
-- Structured enough to remain maintainable
-- Flexible enough to grow without hard resets
+**Serve Phase** -- Customers arrive with visible preferences (sweet, salty, cheap, etc.). Your machine sells matching items automatically. Unsold items age between rounds: Fresh to Vintage (+2c) to Legendary (+4c), but Legendary items risk going Rotten (40% value). Combos trigger based on item arrangement in the grid, awarding bonus coins.
 
-The goal is to give React/TypeScript developers an engine-style foundation they can extend indefinitely with their own gameplay modules and systems.
+After each round you collect earnings, pay rent (it escalates), and optionally pick stickers -- passive modifiers with edition rarities (Foil, Holo, Chromatix, Negative, Golden) that affect your strategy.
 
-## Core Principles
+## Game Modes
 
-- **React-first UI composition** for control and interface layers
-- **TypeScript-first architecture** for reliable, explicit contracts
-- **Separation of concerns** across components, logic, and services
-- **System extensibility** through modular, pluggable building blocks
-- **Testability by default** for both logic and UI behavior
+- **Retirement Fund** -- Accumulate 300c total to win. Take your time and build up.
+- **Profiteer** -- Hit an escalating profit target every round for 10 rounds. Miss one and it is game over.
 
-## What UrsaManus Is (and Is Not)
+## Losing
 
-UrsaManus is a micro-engine architecture for browser-based interactive projects.
+- Coins drop below zero (rent is due every round).
+- Machine HP hits zero from random events or angry customers.
+- Profiteer mode: fail to meet the round's profit target.
 
-It is not trying to replace full-scale AAA engines. Instead, it provides a practical, extensible base for smaller games that can grow in sophistication as needed.
+## Built With
 
-## Architecture Snapshot
+React 19, TypeScript, Vite, Canvas 2D. Built on the UrsaManus micro-engine (DataBus, prefabs, modular logic/services architecture).
 
-`src/`
+## Development
 
-- `components/` — rendering and input/UI composition
-- `logic/` — reusable game logic and collision utilities
-- `services/` — stateful services (for example `DataBus`)
-- `styles/` — styling layers
-- `tests/` — unit/integration coverage for behavior and layout
-
-## Why This Approach
-
-Many TypeScript + React developers already have strong app architecture habits. UrsaManus uses that same discipline for game-like systems:
-
-- React handles composition and mounting
-- Service/logic layers handle simulation and state transitions
-- Render layers consume normalized data and draw frames
-
-This allows a project to start simple, then expand into custom systems without throwing away the original foundation.
+```
+npm install
+npm run dev       # local dev server
+npm run test:run  # run tests
+```
 
 ## Save/Load Docs
 
