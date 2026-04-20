@@ -16,9 +16,6 @@ const diagSold = (ctx: { machine: { slots: { position: { row: number; col: numbe
 const countType = (ctx: { typeSales: Partial<Record<string, number>> }, type: string) =>
     (ctx.typeSales as Record<string, number>)[type] ?? 0;
 
-const _countVibe = (ctx: { vibeSales: Partial<Record<string, number>> }, vibe: string) =>
-    (ctx.vibeSales as Record<string, number>)[vibe] ?? 0;
-
 // ══════════════════════════════════════════════════════════
 //  ALL STICKER DEFINITIONS — 100 machine stickers
 // ══════════════════════════════════════════════════════════

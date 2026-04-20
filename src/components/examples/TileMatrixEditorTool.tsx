@@ -5,7 +5,6 @@ import {
     DEFAULT_TILE_LEGEND,
     DEFAULT_ENTITY_LEGEND,
     buildTileLookup,
-    buildEntityLookup,
     roomTemplateToTileMapPayload,
     roomTemplateToWorldgenInput,
     createRoomTemplateRegistry,
@@ -63,10 +62,6 @@ const TileMatrixEditorTool = ({
 
     // --- Legend lookups ---
     const tileLookup = useMemo(() => buildTileLookup(DEFAULT_TILE_LEGEND), []);
-    const _entityLookup = useMemo(
-        () => buildEntityLookup(DEFAULT_ENTITY_LEGEND),
-        [],
-    );
 
     // --- Build + validate on every change ---
     const buildResult = useMemo(() => {
