@@ -6,6 +6,7 @@ import {
     playSfx,
     startBgm,
     ensureAudioContext,
+    unlockAudio,
     isSfxMuted,
     applyPersistedAudioSettings,
 } from "@/services/sfx";
@@ -1160,15 +1161,18 @@ export default function App() {
 
     const handleStartGame = useCallback(
         (mode: GameMode) => {
-            ensureAudio();
+            // Synchronously kick off resume() inside the user gesture (iOS).
+            // Buffers are already decoded from the mount-time preload, so we
+            // just need the context to be running before playing.
+            const unlocked = unlockAudio();
             applyPersistedAudioSettings();
-            // On mobile, the first gesture is this tap — buffers may not be
-            // decoded yet, so wait for initSfx before playing the start sting.
-            initSfx().then(() => {
-                if (isSfxMuted()) return;
-                playSfx("game-start");
-                startBgm();
-            });
+            unlocked
+                .then(() => initSfx())
+                .then(() => {
+                    if (isSfxMuted()) return;
+                    playSfx("game-start");
+                    startBgm();
+                });
             const fresh = createRunState(mode);
             fresh.phase = "prep";
             fresh.roundEvent = rollRoundEvent(fresh.round);
@@ -1181,9 +1185,9 @@ export default function App() {
     );
 
     const handleNewGame = useCallback(() => {
-        ensureAudio();
+        const unlocked = unlockAudio();
         applyPersistedAudioSettings();
-        initSfx().then(() => {
+        unlocked.then(() => initSfx()).then(() => {
             if (!isSfxMuted()) playSfx("game-start");
         });
         const fresh = createRunState();
@@ -2241,6 +2245,16 @@ export default function App() {
             audioInited.current = true;
             initSfx();
         }
+    }, []);
+
+    // Eagerly preload SFX/BGM buffers at mount. Decoding works on a suspended
+    // AudioContext, so this primes everything before the user's first tap —
+    // critical on mobile where the first gesture IS the Start button and
+    // there's no warm-up time for hover/click events.
+    useEffect(() => {
+        if (audioInited.current) return;
+        audioInited.current = true;
+        initSfx();
     }, []);
 
     const handleHover = useCallback(

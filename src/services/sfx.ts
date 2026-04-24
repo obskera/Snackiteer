@@ -100,15 +100,21 @@ function getCtx(): AudioContext | null {
     return ctx;
 }
 
-function createCtx(): AudioContext {
+/** Create context without attempting to resume (safe outside user gesture). */
+function createCtxRaw(): AudioContext {
     if (!ctx) {
         ctx = new AudioContext();
         masterGain = ctx.createGain();
         masterGain.gain.value = volume;
         masterGain.connect(ctx.destination);
     }
-    if (ctx.state === "suspended") ctx.resume();
     return ctx;
+}
+
+function createCtx(): AudioContext {
+    const c = createCtxRaw();
+    if (c.state === "suspended") c.resume();
+    return c;
 }
 
 /**
@@ -117,6 +123,23 @@ function createCtx(): AudioContext {
  */
 export function ensureAudioContext(): void {
     createCtx();
+}
+
+/**
+ * Resume AudioContext synchronously inside a user gesture and return a
+ * promise that resolves once the context is actually running. iOS Safari
+ * requires this resume() call to originate inside the gesture; awaiting
+ * the returned promise is safe and the gesture trust persists.
+ */
+export function unlockAudio(): Promise<void> {
+    const c = createCtxRaw();
+    if (c.state === "running") return Promise.resolve();
+    try {
+        const p = c.resume();
+        return p instanceof Promise ? p : Promise.resolve();
+    } catch {
+        return Promise.resolve();
+    }
 }
 
 let initPromise: Promise<void> | null = null;
@@ -129,11 +152,10 @@ export async function initSfx(): Promise<void> {
 }
 
 async function doInitSfx(): Promise<void> {
-    const ac = createCtx();
-    // Wait for context to be running (mobile browsers need this)
-    if (ac.state === "suspended") {
-        await ac.resume();
-    }
+    // Create context if needed. On iOS this stays "suspended" until a user
+    // gesture resumes it, but decodeAudioData works fine on a suspended ctx,
+    // so we can fetch + decode all buffers eagerly without waiting.
+    const ac = ctx ?? createCtxRaw();
     const entries = Object.entries(SFX_FILES) as [SfxId, string][];
     await Promise.all(
         entries.map(async ([id, src]) => {
