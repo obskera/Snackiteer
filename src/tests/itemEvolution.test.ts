@@ -22,18 +22,18 @@ function makeItem(overrides: Partial<SnackItemInstance> = {}): SnackItemInstance
 }
 
 function makeMachine(item: SnackItemInstance | null): MachineState {
-    return {
-        rows: 1,
-        cols: 1,
-        slots: [
-            {
-                position: { row: 0, col: 0 },
+    const slots = [];
+    for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < 3; col++) {
+            slots.push({
+                position: { row, col },
                 unlocked: true,
-                item,
+                item: row === 0 && col === 0 ? item : null,
                 featured: false,
-            },
-        ],
-    };
+            });
+        }
+    }
+    return { rows: 3, cols: 3, slots };
 }
 
 describe("itemEvolution", () => {
