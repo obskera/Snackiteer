@@ -5,6 +5,7 @@ import {
     initSfx,
     playSfx,
     startBgm,
+    bgmFirstReady,
     ensureAudioContext,
     unlockAudio,
     isSfxMuted,
@@ -1162,16 +1163,21 @@ export default function App() {
     const handleStartGame = useCallback(
         (mode: GameMode) => {
             // Synchronously kick off resume() inside the user gesture (iOS).
-            // Buffers are already decoded from the mount-time preload, so we
-            // just need the context to be running before playing.
             const unlocked = unlockAudio();
             applyPersistedAudioSettings();
+            // Kick off full preload (idempotent if already running).
+            initSfx();
+            // Play start SFX as soon as the context is running — it's tiny and
+            // already decoded by the mount-time preload.
+            unlocked.then(() => {
+                if (!isSfxMuted()) playSfx("game-start");
+            });
+            // Start BGM as soon as the FIRST track decodes — don't wait for
+            // all 10 to finish loading.
             unlocked
-                .then(() => initSfx())
+                .then(() => bgmFirstReady())
                 .then(() => {
-                    if (isSfxMuted()) return;
-                    playSfx("game-start");
-                    startBgm();
+                    if (!isSfxMuted()) startBgm();
                 });
             const fresh = createRunState(mode);
             fresh.phase = "prep";

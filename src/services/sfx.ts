@@ -143,6 +143,8 @@ export function unlockAudio(): Promise<void> {
 }
 
 let initPromise: Promise<void> | null = null;
+let bgmReadyPromise: Promise<void> | null = null;
+let bgmReadyResolve: (() => void) | null = null;
 
 /** Preload all SFX buffers + BGM. Call once after first user interaction. */
 export async function initSfx(): Promise<void> {
@@ -151,38 +153,57 @@ export async function initSfx(): Promise<void> {
     return initPromise;
 }
 
+/**
+ * Resolves as soon as the FIRST BGM track has been fetched and decoded —
+ * not after all of them. Lets us start music with minimum latency.
+ */
+export function bgmFirstReady(): Promise<void> {
+    if (!bgmReadyPromise) {
+        bgmReadyPromise = new Promise<void>((resolve) => {
+            bgmReadyResolve = resolve;
+        });
+    }
+    return bgmReadyPromise;
+}
+
 async function doInitSfx(): Promise<void> {
     // Create context if needed. On iOS this stays "suspended" until a user
     // gesture resumes it, but decodeAudioData works fine on a suspended ctx,
     // so we can fetch + decode all buffers eagerly without waiting.
     const ac = ctx ?? createCtxRaw();
-    const entries = Object.entries(SFX_FILES) as [SfxId, string][];
-    await Promise.all(
-        entries.map(async ([id, src]) => {
-            try {
-                const res = await fetch(resolvePublicAssetPath(src));
-                const arrayBuf = await res.arrayBuffer();
-                const audioBuf = await ac.decodeAudioData(arrayBuf);
-                buffers.set(id, audioBuf);
-            } catch {
-                // missing sfx asset — silent fail
-            }
-        }),
-    );
+    // Prime the bgm-ready promise so consumers that call before initSfx still work.
+    bgmFirstReady();
 
-    // Load BGM tracks
-    await Promise.all(
-        BGM_FILES.map(async (src) => {
-            try {
-                const res = await fetch(resolvePublicAssetPath(src));
-                const arrayBuf = await res.arrayBuffer();
-                const audioBuf = await ac.decodeAudioData(arrayBuf);
-                bgmBuffers.push(audioBuf);
-            } catch {
-                // missing bgm asset — silent fail
+    const sfxEntries = Object.entries(SFX_FILES) as [SfxId, string][];
+    const sfxLoad = sfxEntries.map(async ([id, src]) => {
+        try {
+            const res = await fetch(resolvePublicAssetPath(src));
+            const arrayBuf = await res.arrayBuffer();
+            const audioBuf = await ac.decodeAudioData(arrayBuf);
+            buffers.set(id, audioBuf);
+        } catch {
+            // missing sfx asset — silent fail
+        }
+    });
+
+    const bgmLoad = BGM_FILES.map(async (src) => {
+        try {
+            const res = await fetch(resolvePublicAssetPath(src));
+            const arrayBuf = await res.arrayBuffer();
+            const audioBuf = await ac.decodeAudioData(arrayBuf);
+            bgmBuffers.push(audioBuf);
+            // Signal as soon as the first track is playable.
+            if (bgmReadyResolve) {
+                bgmReadyResolve();
+                bgmReadyResolve = null;
             }
-        }),
-    );
+        } catch {
+            // missing bgm asset — silent fail
+        }
+    });
+
+    // Run SFX + BGM preloads concurrently.
+    await Promise.all([...sfxLoad, ...bgmLoad]);
 }
 
 /** Play a sound. Multiple calls overlap — each creates a new source node. */
