@@ -1162,11 +1162,12 @@ export default function App() {
         (mode: GameMode) => {
             ensureAudio();
             applyPersistedAudioSettings();
-            playSfx("game-start");
+            // On mobile, the first gesture is this tap — buffers may not be
+            // decoded yet, so wait for initSfx before playing the start sting.
             initSfx().then(() => {
-                if (!isSfxMuted()) {
-                    startBgm();
-                }
+                if (isSfxMuted()) return;
+                playSfx("game-start");
+                startBgm();
             });
             const fresh = createRunState(mode);
             fresh.phase = "prep";
@@ -1180,8 +1181,11 @@ export default function App() {
     );
 
     const handleNewGame = useCallback(() => {
+        ensureAudio();
         applyPersistedAudioSettings();
-        playSfx("game-start");
+        initSfx().then(() => {
+            if (!isSfxMuted()) playSfx("game-start");
+        });
         const fresh = createRunState();
         fresh.phase = "menu";
         update(() => fresh);
