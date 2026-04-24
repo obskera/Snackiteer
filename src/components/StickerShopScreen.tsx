@@ -44,11 +44,14 @@ export function StickerShopScreen({
     const [picked, setPicked] = useState<StickerInstance | null>(null);
     const used = stickerSlotsUsed(currentStickers);
     const rerollCost = REROLL_BASE_COST * (rerollCount + 1);
+    const slottedStickers = currentStickers.filter(
+        (sticker) => !EDITION_BONUSES[sticker.edition].freeSlot,
+    );
 
     // Build slot list for placement step
     const slots: (StickerInstance | null)[] = [];
     for (let i = 0; i < maxSlots; i++) {
-        slots.push(currentStickers[i] ?? null);
+        slots.push(slottedStickers[i] ?? null);
     }
 
     if (picked) {
@@ -165,7 +168,13 @@ export function StickerShopScreen({
                                     type="button"
                                     className={`sticker-shop__buy ${!canAfford ? "sticker-shop__buy--disabled" : ""}`}
                                     disabled={!canAfford}
-                                    onClick={() => setPicked(sticker)}
+                                    onClick={() => {
+                                        if (edition.freeSlot) {
+                                            onBuy(sticker, maxSlots);
+                                            return;
+                                        }
+                                        setPicked(sticker);
+                                    }}
                                 >
                                     Buy {cost}c
                                 </button>

@@ -92,6 +92,20 @@
     box-shadow: none;
 }
 
+.sticker--extra-slot {
+    border-style: dotted;
+    border-width: 2px;
+}
+
+.sticker__slot-index {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    color: #888;
+    font-size: 6px;
+    letter-spacing: 0.3px;
+}
+
 .sticker__empty-icon {
     color: #555;
     font-size: 18px;

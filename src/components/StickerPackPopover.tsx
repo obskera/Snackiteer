@@ -22,11 +22,14 @@ type Props = {
 export function StickerPackPopover({ options, currentStickers, maxSlots, onPick, onSkip }: Props) {
     const [picked, setPicked] = useState<StickerInstance | null>(null);
     const used = stickerSlotsUsed(currentStickers);
+    const slottedStickers = currentStickers.filter(
+        (sticker) => !EDITION_BONUSES[sticker.edition].freeSlot,
+    );
 
     // Build slot list: existing stickers + empty slots
     const slots: (StickerInstance | null)[] = [];
     for (let i = 0; i < maxSlots; i++) {
-        slots.push(currentStickers[i] ?? null);
+        slots.push(slottedStickers[i] ?? null);
     }
 
     if (picked) {
@@ -88,7 +91,13 @@ export function StickerPackPopover({ options, currentStickers, maxSlots, onPick,
                                 type="button"
                                 className="sp-popover__option"
                                 style={{ borderColor: RARITY_COLORS[sticker.rarity] }}
-                                onClick={() => setPicked(sticker)}
+                                onClick={() => {
+                                    if (edition.freeSlot) {
+                                        onPick(sticker, maxSlots);
+                                        return;
+                                    }
+                                    setPicked(sticker);
+                                }}
                             >
                                 <span className="sp-popover__opt-name">{sticker.name}</span>
                                 <span className="sp-popover__opt-rarity" style={{ color: RARITY_COLORS[sticker.rarity] }}>

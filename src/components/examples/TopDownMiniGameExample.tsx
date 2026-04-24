@@ -49,11 +49,9 @@ const OBJECTIVE_ZONES: ObjectiveZone[] = [
 
 const ROUND_DURATION_MS = 25_000;
 const NINJA_CHARACTER_SPRITESHEET =
-    resolvePublicAssetPath(
-        "Ninja%20Adventure%20-%20Asset%20Pack/Actor/Characters/NinjaBlue/SpriteSheet.png",
-    );
+    resolvePublicAssetPath("DemoAssets/wyrdPixels/sprite-79637-run-8x8-x4.png");
 const NINJA_ENV_PREVIEW =
-    resolvePublicAssetPath("Ninja%20Adventure%20-%20Asset%20Pack/preview-part-1.png");
+    resolvePublicAssetPath("spriteSheet.png");
 
 function resolveObjectiveZoneId(x: number, y: number): string | null {
     const matched = OBJECTIVE_ZONES.find(
@@ -166,24 +164,22 @@ const TopDownMiniGameExample = ({
         <section className="um-container um-stack" aria-label={title}>
             <h3 className="um-title">{title}</h3>
             <p className="um-help">
-                Starting point for a Ninja Adventure-style top-down loop: move
-                through three relay zones before time runs out, then restart the
-                run.
+                Starting point for a top-down loop: move through three relay
+                zones before time runs out, then restart the run.
             </p>
             <p className="um-help">
-                Visual references use the Ninja Adventure Asset Pack (CC0) by
-                Pixel-boy and AAA.
+                Visual references use local project assets.
             </p>
 
-            <div className="um-panel um-stack" aria-label="Ninja asset preview">
-                <p className="um-text">Ninja Adventure asset preview</p>
+            <div className="um-panel um-stack" aria-label="Top-down asset preview">
+                <p className="um-text">Top-down asset preview</p>
                 <img
                     src={NINJA_ENV_PREVIEW}
-                    alt="Ninja Adventure environment preview"
+                    alt="Top-down environment preview"
                 />
                 <img
                     src={NINJA_CHARACTER_SPRITESHEET}
-                    alt="Ninja Adventure NinjaBlue character spritesheet"
+                    alt="Top-down character spritesheet"
                 />
             </div>
 

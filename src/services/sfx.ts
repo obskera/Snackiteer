@@ -47,6 +47,10 @@ let masterGain: GainNode | null = null;
 const STORAGE_KEY = "snackiteer-audio";
 type AudioSettings = { sfxVol: number; bgmVol: number; muted: boolean };
 
+function clamp01(value: number): number {
+    return Math.max(0, Math.min(1, value));
+}
+
 function loadSettings(): AudioSettings {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
@@ -208,7 +212,7 @@ export function playTextBlip(): void {
 }
 
 export function setSfxVolume(v: number): void {
-    volume = Math.max(0, Math.min(1, v));
+    volume = clamp01(v);
     if (masterGain) masterGain.gain.value = volume;
     saveSettings();
 }
@@ -229,6 +233,27 @@ export function setSfxMuted(m: boolean): void {
 
 export function isSfxMuted(): boolean {
     return muted;
+}
+
+/**
+ * Re-reads persisted audio settings and applies them to the active runtime.
+ * Useful when entering gameplay from menu to guarantee current preferences.
+ */
+export function applyPersistedAudioSettings(): void {
+    const persisted = loadSettings();
+    volume = clamp01(persisted.sfxVol);
+    bgmVolume = clamp01(persisted.bgmVol);
+    muted = Boolean(persisted.muted);
+
+    if (masterGain) {
+        masterGain.gain.value = muted ? 0 : volume;
+    }
+    if (bgmGain) {
+        bgmGain.gain.value = bgmVolume;
+    }
+    if (muted) {
+        stopBgm();
+    }
 }
 
 /** Start BGM with a random track. When it ends, pick another random one. */
@@ -282,7 +307,7 @@ export function shuffleBgm(): void {
 }
 
 export function setBgmVolume(v: number): void {
-    bgmVolume = Math.max(0, Math.min(1, v));
+    bgmVolume = clamp01(v);
     if (bgmGain) bgmGain.gain.value = bgmVolume;
     saveSettings();
 }

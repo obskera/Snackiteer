@@ -108,11 +108,64 @@ function HowToPlayModal({ onClose }: { onClose: () => void }) {
                 </section>
 
                 <section className="htp-section">
+                    <h3>Price Dial</h3>
+                    <p>
+                        Each slot in the machine has a price dial — tap{" "}
+                        <strong>▲</strong> / <strong>▼</strong> to nudge the
+                        price up or down by 1¢. The dial can move{" "}
+                        <strong>−2¢ to +3¢</strong> from the item's current
+                        anchor price (and never below 1¢).
+                    </p>
+                    <ul>
+                        <li>
+                            Higher prices earn more per sale, but customers
+                            with a "cheap" preference will skip them and
+                            picky customers may get angry.
+                        </li>
+                        <li>
+                            Lower prices attract bargain hunters and clear
+                            inventory faster, but cut into your margins.
+                        </li>
+                        <li>
+                            The dial follows aging: a Legendary item's anchor
+                            already includes its +4¢ bonus, and a Rotten
+                            item's anchor is its discounted price — so
+                            nudging the dial won't erase the evolution bonus
+                            or the rot penalty.
+                        </li>
+                    </ul>
+                </section>
+
+                <section className="htp-section">
                     <h3>Item Aging</h3>
                     <p>
-                        Unsold items in your machine age between rounds: Fresh →
-                        Vintage (+2¢) → Legendary (+4¢). Legendary items risk
-                        going Rotten each round (sells at 40% price).
+                        Items left unsold in the machine at the end of a round
+                        age one tier:
+                    </p>
+                    <ul>
+                        <li>
+                            <strong>Fresh</strong> → <strong>Vintage</strong>{" "}
+                            (+2¢ value)
+                        </li>
+                        <li>
+                            <strong>Vintage</strong> →{" "}
+                            <strong>Legendary</strong> (+4¢ total over Fresh)
+                        </li>
+                        <li>
+                            <strong>Legendary</strong> has a{" "}
+                            <strong>35% chance</strong> per round to go{" "}
+                            <strong>Rotten</strong> — sells at{" "}
+                            <strong>40% price</strong> (minimum 1¢).
+                        </li>
+                        <li>
+                            Rotten items <strong>stop aging</strong> and keep
+                            their reduced price until sold or trashed.
+                        </li>
+                    </ul>
+                    <p>
+                        Aging is a gamble: holding inventory across rounds can
+                        push prices up, but Legendary items risk rotting into
+                        dead weight.
                     </p>
                 </section>
 

@@ -15,6 +15,30 @@ const ROTTEN_PRICE_MULT = 0.4;
 /** Chance a Legendary item rots each round it stays unsold. */
 const ROTTEN_CHANCE = 0.35;
 
+/**
+ * The price bonus (or penalty) contributed by an item's current evolution level,
+ * expressed as an amount to add to the item's default (Fresh) price.
+ *
+ * - Fresh (lvl 0): 0
+ * - Vintage (lvl 1): +EVO_PRICE_BONUS
+ * - Legendary (lvl 2): +EVO_PRICE_BONUS × 2
+ * - Rotten: negative delta that brings default down to floor(default × 0.4),
+ *   clamped so the final price never drops below 1¢.
+ */
+export function evoPriceDelta(defaultPrice: number, evoLevel: number): number {
+    if (evoLevel === ROTTEN_LEVEL) {
+        const rottenPrice = Math.max(
+            1,
+            Math.round(defaultPrice * ROTTEN_PRICE_MULT),
+        );
+        return rottenPrice - defaultPrice;
+    }
+    if (evoLevel > 0) {
+        return Math.min(evoLevel, MAX_EVO_LEVEL) * EVO_PRICE_BONUS;
+    }
+    return 0;
+}
+
 /** Evolution tier prefixes. */
 const EVO_PREFIX: Record<number, string> = {
     1: "Vintage",

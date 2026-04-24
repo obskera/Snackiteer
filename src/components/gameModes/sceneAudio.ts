@@ -11,9 +11,7 @@ export const GAME_MODE_AUDIO_CUES: Record<string, AudioCueDefinition> = {
     },
     "scene:top-down:music": {
         kind: "file",
-        src: resolvePublicAssetPath(
-            "Ninja%20Adventure%20-%20Asset%20Pack/Audio/Musics/1%20-%20Adventure%20Begin.ogg",
-        ),
+        src: resolvePublicAssetPath("DemoAssets/game.wav"),
         gain: 0.5,
     },
     "player:step": {

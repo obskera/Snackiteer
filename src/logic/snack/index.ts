@@ -76,6 +76,7 @@ export {
 export type { EvolutionResult } from "./itemEvolution";
 export {
     evolveUnsoldItems,
+    evoPriceDelta,
     MAX_EVO_LEVEL,
     ROTTEN_LEVEL,
     EVO_NARRATION,

@@ -9,11 +9,9 @@ import SoundManager from "./SoundManager";
 import { GAME_MODE_AUDIO_CUES } from "./sceneAudio";
 
 const TOP_DOWN_FLOOR_TILESET =
-    resolvePublicAssetPath(
-        "Ninja%20Adventure%20-%20Asset%20Pack/Backgrounds/Tilesets/TilesetFloor.png",
-    );
+    resolvePublicAssetPath("spriteSheet.png");
 const PLAYER_LIFE_SPRITE = resolvePublicAssetPath(
-    "Ninja%20Adventure%20-%20Asset%20Pack/Actor/Characters/NinjaGreen/SeparateAnim/Idle.png",
+    "DemoAssets/wyrdPixels/sprite-79637-idle-8x8-x4.png",
 );
 
 const TOP_DOWN_FLOOR_PATTERN_TILES: ReadonlyArray<readonly [number, number]> = [

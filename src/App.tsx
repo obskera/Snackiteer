@@ -1,7 +1,14 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { VendingMachine } from "./components/vendingMachine";
 import { useFloatingFX } from "@/hooks/useFloatingFX";
-import { initSfx, playSfx, startBgm, ensureAudioContext } from "@/services/sfx";
+import {
+    initSfx,
+    playSfx,
+    startBgm,
+    ensureAudioContext,
+    isSfxMuted,
+    applyPersistedAudioSettings,
+} from "@/services/sfx";
 import { AudioControls } from "@/components/AudioControls";
 import { StickerTray } from "@/components/StickerTray";
 import { StickerShopScreen } from "@/components/StickerShopScreen";
@@ -19,6 +26,7 @@ import {
     STICKER_BUY_COSTS,
     REROLL_BASE_COST,
     sellSticker,
+    EDITION_BONUSES,
     resolveStickers,
     RETIREMENT_GOAL,
     PROFITEER_ROUNDS,
@@ -33,6 +41,7 @@ import {
     PRICE_DIAL_MIN,
     PRICE_DIAL_MAX,
     defaultPrice,
+    evoPriceDelta,
     generateDraftOffering,
     canAddToCooler,
     draftRerollCost,
@@ -114,10 +123,16 @@ type ServeNarration = {
         firstBatchEvents: ServeEvent[];
         /** Recipe data discovered during first batch. */
         newRecipes: { name: string; bonus: number }[];
+        /** Combo bonus already credited in first batch. */
+        firstBatchComboBonus: number;
+        /** Recipe bonus already credited in first batch. */
+        firstBatchRecipeBonus: number;
+        /** Active combos from first batch (for summary replay). */
+        firstBatchCombos: number;
     } | null;
 };
 
-const EMPTY_NARRATION: ServeNarration = {
+const createEmptyNarration = (): ServeNarration => ({
     runId: 0,
     lines: [],
     removals: [],
@@ -144,7 +159,224 @@ const EMPTY_NARRATION: ServeNarration = {
     skipLines: 0,
     restockPauseAt: null,
     pendingRestock: null,
+});
+
+// ── Sticker scoring helper (shared by start-round and restock-continue) ─
+
+type StickerScoringInput = {
+    stickers: import("@/logic/snack").StickerInstance[];
+    events: ServeEvent[];
+    totalSales: number;
+    itemsSold: number;
+    damageTaken: number;
+    kicks: number;
+    combosTriggered: number;
+    comboBonus: number;
+    recipeBonus: number;
+    rent: number;
+    run: RunState;
 };
+
+type StickerScoringResult = {
+    stickerFlatBonus: number;
+    stickerMult: number;
+    stickerRentReduction: number;
+    stickerHpHeal: number;
+    multBonus: number;
+    /** Narration lines to append (relative indices; caller offsets). */
+    lines: TypewriterLine[];
+    /** Coin gains with lineIndex relative to the returned `lines` array. */
+    coinGains: CoinGain[];
+};
+
+function computeStickerScoring(
+    input: StickerScoringInput,
+): StickerScoringResult {
+    const empty: StickerScoringResult = {
+        stickerFlatBonus: 0,
+        stickerMult: 1,
+        stickerRentReduction: 0,
+        stickerHpHeal: 0,
+        multBonus: 0,
+        lines: [],
+        coinGains: [],
+    };
+    if (input.stickers.length === 0) return empty;
+
+    const {
+        stickers,
+        events,
+        totalSales,
+        itemsSold,
+        damageTaken,
+        kicks,
+        combosTriggered,
+        comboBonus,
+        recipeBonus,
+        rent,
+        run,
+    } = input;
+
+    const typeSales: Partial<Record<ItemTypeTag, number>> = {};
+    const vibeSales: Partial<Record<ItemVibeTag, number>> = {};
+    for (const evt of events) {
+        if (evt.bought) {
+            for (const tag of evt.bought.tags) {
+                if (["drink", "snack", "candy"].includes(tag)) {
+                    typeSales[tag as ItemTypeTag] =
+                        (typeSales[tag as ItemTypeTag] ?? 0) + 1;
+                }
+                if (
+                    ["sweet", "salty", "sour", "spicy", "refreshing"].includes(
+                        tag,
+                    )
+                ) {
+                    vibeSales[tag as ItemVibeTag] =
+                        (vibeSales[tag as ItemVibeTag] ?? 0) + 1;
+                }
+            }
+        }
+    }
+
+    const totalStocked = run.machine.slots.filter(
+        (s) => s.unlocked && s.item,
+    ).length;
+    const emptyUnlocked = run.machine.slots.filter(
+        (s) => s.unlocked && !s.item,
+    ).length;
+
+    const stickerCtx = {
+        machine: run.machine,
+        round: run.round,
+        coins: run.coins,
+        profitStreak: run.profitStreak,
+        salesThisRound: totalSales,
+        typeSales,
+        vibeSales,
+        totalSold: itemsSold,
+        totalStocked,
+        emptySlots: emptyUnlocked,
+        damageTaken,
+        kicks,
+        combosTriggered,
+        run,
+    };
+
+    let stickerFlatBonus = 0;
+    let stickerMult = 1;
+
+    for (const evt of events) {
+        if (evt.bought && evt.slotIndex != null) {
+            const slot = run.machine.slots[evt.slotIndex];
+            const r = resolveStickers(stickers, "on-sale", {
+                ...stickerCtx,
+                soldSlotRow: slot?.position.row,
+                soldSlotCol: slot?.position.col,
+                soldItemType: evt.bought.tags.find((t) =>
+                    ["drink", "snack", "candy"].includes(t),
+                ) as ItemTypeTag | undefined,
+                soldItemVibe: evt.bought.tags.find((t) =>
+                    ["sweet", "salty", "sour", "spicy", "refreshing"].includes(
+                        t,
+                    ),
+                ) as ItemVibeTag | undefined,
+            });
+            stickerFlatBonus += r.addCoins;
+            if (r.mult > 1) {
+                stickerFlatBonus += Math.round(
+                    evt.bought.price * (r.mult - 1),
+                );
+            }
+        }
+    }
+
+    const scoring = resolveStickers(stickers, "scoring", stickerCtx);
+    stickerFlatBonus += scoring.addCoins;
+    stickerMult *= scoring.mult;
+
+    const roundEndR = resolveStickers(stickers, "round-end", stickerCtx);
+    stickerFlatBonus += roundEndR.addCoins;
+    stickerMult *= roundEndR.mult;
+
+    const roundStartR = resolveStickers(stickers, "round-start", stickerCtx);
+    stickerFlatBonus += roundStartR.addCoins;
+
+    const passive = resolveStickers(stickers, "passive", stickerCtx);
+    stickerFlatBonus += passive.addCoins;
+    const stickerRentReduction = passive.rentReduction;
+    const stickerHpHeal =
+        passive.hpHeal + roundEndR.hpHeal + scoring.hpHeal;
+
+    // Cap mult and flat bonus so narrated credit matches the final summary.
+    stickerMult = Math.min(stickerMult, 10);
+    stickerFlatBonus = Math.min(stickerFlatBonus, 9999);
+
+    const baseRevForSticker = totalSales + comboBonus + recipeBonus;
+    const multBonus =
+        stickerMult > 1
+            ? Math.round(baseRevForSticker * (stickerMult - 1))
+            : 0;
+
+    const lines: TypewriterLine[] = [];
+    const coinGains: CoinGain[] = [];
+
+    if (multBonus > 0 || stickerFlatBonus > 0 || stickerRentReduction > 0) {
+        lines.push({
+            text: "── Sticker Effects ──",
+            charDelay: 15,
+            lingerMs: 600,
+            className: "vm-narration__combo-header",
+        });
+        if (stickerMult > 1) {
+            const label =
+                stickerMult % 1 === 0
+                    ? `×${stickerMult}`
+                    : `×${stickerMult.toFixed(1)}`;
+            lines.push({
+                text: `${label} Sticker Multiplier! +${multBonus}¢`,
+                charDelay: 20,
+                lingerMs: 500,
+                className: "vm-narration__combo",
+            });
+            coinGains.push({
+                lineIndex: lines.length - 1,
+                amount: multBonus,
+            });
+        }
+        if (stickerFlatBonus > 0) {
+            lines.push({
+                text: `+${stickerFlatBonus}¢ Sticker Bonus!`,
+                charDelay: 20,
+                lingerMs: 500,
+                className: "vm-narration__combo",
+            });
+            coinGains.push({
+                lineIndex: lines.length - 1,
+                amount: stickerFlatBonus,
+            });
+        }
+        if (stickerRentReduction > 0) {
+            const actualReduction = Math.min(rent, stickerRentReduction);
+            lines.push({
+                text: `−${actualReduction}¢ Rent Reduction!`,
+                charDelay: 20,
+                lingerMs: 500,
+                className: "vm-narration__combo",
+            });
+        }
+        lines.push({ text: "", charDelay: 0, lingerMs: 300 });
+    }
+
+    return {
+        stickerFlatBonus,
+        stickerMult,
+        stickerRentReduction,
+        stickerHpHeal,
+        multBonus,
+        lines,
+        coinGains,
+    };
+}
 
 // ── State hook ───────────────────────────────────────────
 
@@ -615,13 +847,17 @@ function DraftPanel({
 function CoolerPanel({
     cooler,
     maxCooler,
+    slots,
     selectedItem,
     onSelect,
+    onPlaceInSlot,
 }: {
     cooler: SnackItemInstance[];
     maxCooler: number;
+    slots: MachineSlot[];
     selectedItem: SnackItemInstance | null;
     onSelect: (item: SnackItemInstance | null) => void;
+    onPlaceInSlot: (slotIdx: number) => void;
 }) {
     if (cooler.length === 0) {
         return (
@@ -667,6 +903,45 @@ function CoolerPanel({
                     );
                 })}
             </div>
+            <div className="vm-shop-placement">
+                <span className="vm-shop-placement__label">
+                    {selectedItem
+                        ? `Place ${selectedItem.name}:`
+                        : "Select a cooler item above"}
+                </span>
+                <div className="vm-shop-grid">
+                    {slots.map((slot, idx) => {
+                        const empty = slot.unlocked && !slot.item;
+                        const active = !!selectedItem;
+                        return (
+                            <button
+                                type="button"
+                                key={idx}
+                                className={`vm-shop-grid__cell ${!slot.unlocked ? "vm-shop-grid__cell--locked" : ""} ${slot.item ? "vm-shop-grid__cell--full" : ""} ${empty ? "vm-shop-grid__cell--empty" : ""} ${!active ? "vm-shop-grid__cell--inactive" : ""}`}
+                                disabled={!empty || !active}
+                                onClick={() => onPlaceInSlot(idx)}
+                                title={
+                                    slot.item
+                                        ? slot.item.name
+                                        : slot.unlocked
+                                          ? "Empty"
+                                          : "Locked"
+                                }
+                            >
+                                {slot.item ? (
+                                    <span className="vm-shop-grid__name">
+                                        {(slot.item.baseName ?? slot.item.name).slice(0, 3)}
+                                    </span>
+                                ) : slot.unlocked ? (
+                                    "+"
+                                ) : (
+                                    "🔒"
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
             {selectedItem && (
                 <p className="vm-cooler__hint">
                     Click an empty slot to place {selectedItem.name}
@@ -692,7 +967,7 @@ export default function App() {
     } = useGameState();
 
     // ── Serve narration (single source of truth) ──────────
-    const [serve, setServe] = useState<ServeNarration>(EMPTY_NARRATION);
+    const [serve, setServe] = useState<ServeNarration>(createEmptyNarration);
     // ── Interactive serve (tracks whether serve is active) ──
     const [, setInteractiveServe] =
         useState<InteractiveServeState>(EMPTY_INTERACTIVE);
@@ -813,7 +1088,7 @@ export default function App() {
         }
 
         const summary = serve.summary;
-        setServe(EMPTY_NARRATION);
+        setServe(createEmptyNarration());
 
         update((draft) => {
             // Deduct rent at end of round
@@ -859,6 +1134,7 @@ export default function App() {
                 draft.round >= PROFITEER_ROUNDS
             ) {
                 draft.phase = "win";
+                draft.lastSummary = summary;
                 playSfx("round-end");
                 return;
             }
@@ -869,6 +1145,7 @@ export default function App() {
                 draft.coins >= RETIREMENT_GOAL
             ) {
                 draft.phase = "win";
+                draft.lastSummary = summary;
                 playSfx("round-end");
                 return;
             }
@@ -884,8 +1161,13 @@ export default function App() {
     const handleStartGame = useCallback(
         (mode: GameMode) => {
             ensureAudio();
+            applyPersistedAudioSettings();
             playSfx("game-start");
-            initSfx().then(() => startBgm());
+            initSfx().then(() => {
+                if (!isSfxMuted()) {
+                    startBgm();
+                }
+            });
             const fresh = createRunState(mode);
             fresh.phase = "prep";
             fresh.roundEvent = rollRoundEvent(fresh.round);
@@ -898,11 +1180,12 @@ export default function App() {
     );
 
     const handleNewGame = useCallback(() => {
+        applyPersistedAudioSettings();
         playSfx("game-start");
         const fresh = createRunState();
         fresh.phase = "menu";
         update(() => fresh);
-        setServe(EMPTY_NARRATION);
+        setServe(createEmptyNarration());
         setInteractiveServe(EMPTY_INTERACTIVE);
     }, [update]);
 
@@ -1104,6 +1387,9 @@ export default function App() {
                         name: r.name,
                         bonus: r.bonus,
                     })),
+                    firstBatchComboBonus: 0,
+                    firstBatchRecipeBonus: recipeBonus,
+                    firstBatchCombos: combos.length,
                 },
             });
             return;
@@ -1150,179 +1436,28 @@ export default function App() {
         }
 
         // ── Sticker effects (post-serve) ──────
-        let stickerFlatBonus = 0;
-        let stickerMult = 1;
-        let stickerRentReduction = 0;
-        let stickerHpHeal = 0;
-
-        if (run.stickers.length > 0) {
-            const typeSales: Partial<Record<ItemTypeTag, number>> = {};
-            const vibeSales: Partial<Record<ItemVibeTag, number>> = {};
-            for (const evt of events) {
-                if (evt.bought) {
-                    for (const tag of evt.bought.tags) {
-                        if (["drink", "snack", "candy"].includes(tag)) {
-                            typeSales[tag as ItemTypeTag] =
-                                (typeSales[tag as ItemTypeTag] ?? 0) + 1;
-                        }
-                        if (
-                            [
-                                "sweet",
-                                "salty",
-                                "sour",
-                                "spicy",
-                                "refreshing",
-                            ].includes(tag)
-                        ) {
-                            vibeSales[tag as ItemVibeTag] =
-                                (vibeSales[tag as ItemVibeTag] ?? 0) + 1;
-                        }
-                    }
-                }
-            }
-            const totalStocked = run.machine.slots.filter(
-                (s) => s.unlocked && s.item,
-            ).length;
-            const emptyUnlocked = run.machine.slots.filter(
-                (s) => s.unlocked && !s.item,
-            ).length;
-
-            const stickerCtx = {
-                machine: run.machine,
-                round: run.round,
-                coins: run.coins,
-                profitStreak: run.profitStreak,
-                salesThisRound: totalSales,
-                typeSales,
-                vibeSales,
-                totalSold: itemsSold,
-                totalStocked,
-                emptySlots: emptyUnlocked,
-                damageTaken,
-                kicks,
-                combosTriggered: combos.length,
-                run,
-            };
-
-            for (const evt of events) {
-                if (evt.bought && evt.slotIndex != null) {
-                    const slot = run.machine.slots[evt.slotIndex];
-                    const r = resolveStickers(run.stickers, "on-sale", {
-                        ...stickerCtx,
-                        soldSlotRow: slot?.position.row,
-                        soldSlotCol: slot?.position.col,
-                        soldItemType: evt.bought.tags.find((t) =>
-                            ["drink", "snack", "candy"].includes(t),
-                        ) as ItemTypeTag | undefined,
-                        soldItemVibe: evt.bought.tags.find((t) =>
-                            [
-                                "sweet",
-                                "salty",
-                                "sour",
-                                "spicy",
-                                "refreshing",
-                            ].includes(t),
-                        ) as ItemVibeTag | undefined,
-                    });
-                    stickerFlatBonus += r.addCoins;
-                    if (r.mult > 1) {
-                        stickerFlatBonus += Math.round(
-                            evt.bought.price * (r.mult - 1),
-                        );
-                    }
-                }
-            }
-
-            const scoring = resolveStickers(
-                run.stickers,
-                "scoring",
-                stickerCtx,
-            );
-            stickerFlatBonus += scoring.addCoins;
-            stickerMult *= scoring.mult;
-
-            const roundEndR = resolveStickers(
-                run.stickers,
-                "round-end",
-                stickerCtx,
-            );
-            stickerFlatBonus += roundEndR.addCoins;
-            stickerMult *= roundEndR.mult;
-
-            const roundStartR = resolveStickers(
-                run.stickers,
-                "round-start",
-                stickerCtx,
-            );
-            stickerFlatBonus += roundStartR.addCoins;
-
-            const passive = resolveStickers(
-                run.stickers,
-                "passive",
-                stickerCtx,
-            );
-            stickerFlatBonus += passive.addCoins;
-            stickerRentReduction = passive.rentReduction;
-            stickerHpHeal = passive.hpHeal + roundEndR.hpHeal + scoring.hpHeal;
-
-            const baseRevForSticker = totalSales + comboBonus + recipeBonus;
-            const multBonus =
-                stickerMult > 1
-                    ? Math.round(baseRevForSticker * (stickerMult - 1))
-                    : 0;
-
-            if (
-                multBonus > 0 ||
-                stickerFlatBonus > 0 ||
-                stickerRentReduction > 0
-            ) {
-                lines.push({
-                    text: "── Sticker Effects ──",
-                    charDelay: 15,
-                    lingerMs: 600,
-                    className: "vm-narration__combo-header",
-                });
-                if (stickerMult > 1) {
-                    const label =
-                        stickerMult % 1 === 0
-                            ? `×${stickerMult}`
-                            : `×${stickerMult.toFixed(1)}`;
-                    lines.push({
-                        text: `${label} Sticker Multiplier! +${multBonus}¢`,
-                        charDelay: 20,
-                        lingerMs: 500,
-                        className: "vm-narration__combo",
-                    });
-                    coinGains.push({
-                        lineIndex: lines.length - 1,
-                        amount: multBonus,
-                    });
-                }
-                if (stickerFlatBonus > 0) {
-                    lines.push({
-                        text: `+${stickerFlatBonus}¢ Sticker Bonus!`,
-                        charDelay: 20,
-                        lingerMs: 500,
-                        className: "vm-narration__combo",
-                    });
-                    coinGains.push({
-                        lineIndex: lines.length - 1,
-                        amount: stickerFlatBonus,
-                    });
-                }
-                if (stickerRentReduction > 0) {
-                    const actualReduction = Math.min(
-                        rent,
-                        stickerRentReduction,
-                    );
-                    lines.push({
-                        text: `−${actualReduction}¢ Rent Reduction!`,
-                        charDelay: 20,
-                        lingerMs: 500,
-                        className: "vm-narration__combo",
-                    });
-                }
-                lines.push({ text: "", charDelay: 0, lingerMs: 300 });
+        const __stickerResult = computeStickerScoring({
+            stickers: run.stickers,
+            events,
+            totalSales,
+            itemsSold,
+            damageTaken,
+            kicks,
+            combosTriggered: combos.length,
+            comboBonus,
+            recipeBonus,
+            rent,
+            run,
+        });
+        const stickerFlatBonus = __stickerResult.stickerFlatBonus;
+        const stickerMult = __stickerResult.stickerMult;
+        const stickerRentReduction = __stickerResult.stickerRentReduction;
+        const stickerHpHeal = __stickerResult.stickerHpHeal;
+        {
+            const __offset = lines.length;
+            for (const l of __stickerResult.lines) lines.push(l);
+            for (const c of __stickerResult.coinGains) {
+                coinGains.push({ ...c, lineIndex: c.lineIndex + __offset });
             }
         }
 
@@ -1514,8 +1649,53 @@ export default function App() {
                     ? 0
                     : rentForRound(pending.round, run.rent)
                 : 0;
-        const totalEarnings = Math.min(totalSales + comboBonus, MAX_COINS);
-        const effectiveRent = rent;
+
+        // Combine first + second batch for sticker scoring
+        const allEvents: ServeEvent[] = [
+            ...pending.firstBatchEvents,
+            ...events2,
+        ];
+        const recipeBonus = pending.firstBatchRecipeBonus;
+        const combinedComboBonus =
+            pending.firstBatchComboBonus + comboBonus;
+        const combosTriggered = pending.firstBatchCombos + combos.length;
+
+        const stickerResult = computeStickerScoring({
+            stickers: run.stickers,
+            events: allEvents,
+            totalSales,
+            itemsSold,
+            damageTaken,
+            kicks,
+            combosTriggered,
+            comboBonus: combinedComboBonus,
+            recipeBonus,
+            rent,
+            run,
+        });
+        {
+            const __offset = allLines.length;
+            for (const l of stickerResult.lines) allLines.push(l);
+            for (const c of stickerResult.coinGains) {
+                allCoinGains.push({
+                    ...c,
+                    lineIndex: c.lineIndex + __offset,
+                });
+            }
+        }
+
+        const cappedMult = Math.min(stickerResult.stickerMult, 10);
+        const cappedFlat = Math.min(stickerResult.stickerFlatBonus, 9999);
+        const baseRevenue = totalSales + combinedComboBonus + recipeBonus;
+        const multedRevenue =
+            cappedMult > 1
+                ? Math.round(baseRevenue * cappedMult)
+                : baseRevenue;
+        const totalEarnings = Math.min(multedRevenue + cappedFlat, MAX_COINS);
+        const effectiveRent = Math.max(
+            0,
+            rent - stickerResult.stickerRentReduction,
+        );
 
         // Evo preview from remaining unsold items post-restock
         const evoPreview: { name: string; level: number }[] = [];
@@ -1573,7 +1753,7 @@ export default function App() {
             coinGains: allCoinGains,
             restocks: allRestocks,
             summary,
-            stickerHpHeal: 0,
+            stickerHpHeal: stickerResult.stickerHpHeal,
             appliedRemovals: preAppliedRemovals,
             appliedHpDamages: preAppliedHpDamages,
             appliedCoinGains: preAppliedCoinGains,
@@ -1613,21 +1793,17 @@ export default function App() {
 
     /** After sticker shop (pick or skip), advance to next round prep. */
     const handleStickerShopDone = useCallback(() => {
-        let hasEvent = false;
-        update((draft) => {
-            advanceToNextRound(draft);
-            hasEvent = draft.roundEvent != null;
-        });
+        // Compute next-round state synchronously so we can refresh catalogue
+        // without scheduling setState inside another setState updater.
+        const next = structuredClone(run);
+        advanceToNextRound(next);
+        const hasEvent = next.roundEvent != null;
+        update(() => next);
         if (hasEvent) playSfx("event-banner");
-        // Evolution/rotten effects now shown in summary UI, not machine slots
         setSelectedCatalogueItem(null);
         setStickerShopOptions([]);
-        setTimeout(() => {
-            update((draft) => {
-                refreshCatalogue(draft);
-            });
-        }, 0);
-    }, [update, refreshCatalogue, setSelectedCatalogueItem]);
+        refreshCatalogue(next);
+    }, [run, update, refreshCatalogue, setSelectedCatalogueItem]);
 
     const handleUpgrade = useCallback(
         (id: UpgradeId) => {
@@ -1681,6 +1857,22 @@ export default function App() {
     >([]);
     const [stickerShopRerolls, setStickerShopRerolls] = useState(0);
 
+    // Reset transient UI state on every phase transition so stale selections
+    // or open popovers don't linger across prep/serve/summary/shop boundaries.
+    useEffect(() => {
+        setSelectedSlotPos(null);
+        setSelectedShopItem(null);
+        setSelectedCoolerItem(null);
+        setSelectedCatalogueItem(null);
+        setPickingFeatured(false);
+        setUpgradeOpen(false);
+        setCoolerOpen(false);
+        setShopOpen(false);
+        setRecipeBookOpen(false);
+        setAreaDetailOpen(false);
+        setHighlightNextLocked(false);
+    }, [run.phase, setSelectedCoolerItem, setSelectedCatalogueItem]);
+
     const handleUpgradeHover = useCallback((id: UpgradeId | null) => {
         setHighlightNextLocked(id === "unlock-slot");
     }, []);
@@ -1712,11 +1904,30 @@ export default function App() {
                 if (draft.lockedStickerDefId === sticker.defId) {
                     draft.lockedStickerDefId = null;
                 }
-                if (slotIndex < draft.stickers.length) {
-                    draft.stickers[slotIndex] = sticker;
-                } else {
+
+                const usesFreeSlot = EDITION_BONUSES[sticker.edition].freeSlot;
+                if (usesFreeSlot) {
                     draft.stickers.push(sticker);
+                    return;
                 }
+
+                const slottedStickers = draft.stickers.filter(
+                    (owned) => !EDITION_BONUSES[owned.edition].freeSlot,
+                );
+                const stickerToReplace = slottedStickers[slotIndex] ?? null;
+
+                if (stickerToReplace) {
+                    const replaceIdx = draft.stickers.findIndex(
+                        (owned) =>
+                            owned.instanceId === stickerToReplace.instanceId,
+                    );
+                    if (replaceIdx >= 0) {
+                        draft.stickers[replaceIdx] = sticker;
+                        return;
+                    }
+                }
+
+                draft.stickers.push(sticker);
             });
             // Advance to next round prep
             handleStickerShopDone();
@@ -1822,6 +2033,28 @@ export default function App() {
         refreshDraft(run);
     }, [run, update, refreshDraft]);
 
+    const handleCoolerPlaceInSlot = useCallback(
+        (slotIdx: number) => {
+            const item = selectedCoolerItem;
+            if (!item) return;
+            const slot = run.machine.slots[slotIdx];
+            if (!slot?.unlocked || slot.item) return;
+
+            playSfx("slot-place");
+            update((draft) => {
+                const target = draft.machine.slots[slotIdx];
+                if (!target?.unlocked || target.item) return;
+                target.item = item;
+                draft.cooler = draft.cooler.filter(
+                    (b) => b.instanceId !== item.instanceId,
+                );
+            });
+            setSelectedCoolerItem(null);
+            setSelectedSlotPos(null);
+        },
+        [selectedCoolerItem, run.machine.slots, update, setSelectedCoolerItem],
+    );
+
     const handleSlotClick = useCallback(
         (slot: MachineSlot) => {
             // Allow slot clicks during prep and during restock
@@ -1920,6 +2153,7 @@ export default function App() {
                 const refund = Math.max(1, Math.round(s.item.cost * 0.1));
                 s.item = null;
                 draft.coins += refund;
+                playSfx("slot-select");
             });
             setSelectedSlotPos(null);
         },
@@ -1943,7 +2177,11 @@ export default function App() {
             update((draft) => {
                 const s = getSlot(draft.machine, row, col);
                 if (!s?.item) return;
-                const base = defaultPrice(s.item);
+                // Dial centers on the item's evo-adjusted base price, so
+                // Vintage/Legendary/Rotten prices don't get clamped back toward
+                // the Fresh default when the dial is touched.
+                const fresh = defaultPrice(s.item);
+                const base = fresh + evoPriceDelta(fresh, s.item.evoLevel ?? 0);
                 const newPrice = s.item.price + delta;
                 // Clamp to [base + DIAL_MIN, base + DIAL_MAX], floor 1
                 const clamped = Math.max(
@@ -2538,8 +2776,10 @@ export default function App() {
                                 <CoolerPanel
                                     cooler={run.cooler}
                                     maxCooler={maxCoolerSize(run.upgradeCounts["expand-cooler"])}
+                                    slots={run.machine.slots}
                                     selectedItem={selectedCoolerItem}
                                     onSelect={setSelectedCoolerItem}
+                                    onPlaceInSlot={handleCoolerPlaceInSlot}
                                 />
                                 <button
                                     type="button"
@@ -2619,6 +2859,13 @@ export default function App() {
                                 {run.coins}¢ in the bank after {run.round}{" "}
                                 rounds.
                             </p>
+                            {run.lastSummary && (
+                                <p className="vm-game-over__stats">
+                                    Final round: +{run.lastSummary.totalProfit}¢
+                                    revenue · {run.lastSummary.itemsSold} items
+                                    sold
+                                </p>
+                            )}
                             <p className="vm-game-over__stats">
                                 {run.stickers.length} stickers collected
                             </p>

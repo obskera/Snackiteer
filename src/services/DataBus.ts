@@ -39,38 +39,17 @@ import { TOP_DOWN_PLAYER_TUNING } from "@/config/playerTuning";
 import { resolvePublicAssetPath } from "@/utils/assetPaths";
 
 const NINJA_GREEN_ANIMATION_SHEETS = {
-    attack: resolvePublicAssetPath(
-        "Ninja%20Adventure%20-%20Asset%20Pack/Actor/Characters/NinjaGreen/SeparateAnim/Attack.png",
-    ),
-    dead: resolvePublicAssetPath(
-        "Ninja%20Adventure%20-%20Asset%20Pack/Actor/Characters/NinjaGreen/SeparateAnim/Dead.png",
-    ),
-    idle: resolvePublicAssetPath(
-        "Ninja%20Adventure%20-%20Asset%20Pack/Actor/Characters/NinjaGreen/SeparateAnim/Idle.png",
-    ),
-    item: resolvePublicAssetPath(
-        "Ninja%20Adventure%20-%20Asset%20Pack/Actor/Characters/NinjaGreen/SeparateAnim/Item.png",
-    ),
-    jump: resolvePublicAssetPath(
-        "Ninja%20Adventure%20-%20Asset%20Pack/Actor/Characters/NinjaGreen/SeparateAnim/Jump.png",
-    ),
-    special1:
-        resolvePublicAssetPath(
-            "Ninja%20Adventure%20-%20Asset%20Pack/Actor/Characters/NinjaGreen/SeparateAnim/Special1.png",
-        ),
-    special2:
-        resolvePublicAssetPath(
-            "Ninja%20Adventure%20-%20Asset%20Pack/Actor/Characters/NinjaGreen/SeparateAnim/Special2.png",
-        ),
-    walk: resolvePublicAssetPath(
-        "Ninja%20Adventure%20-%20Asset%20Pack/Actor/Characters/NinjaGreen/SeparateAnim/Walk.png",
-    ),
+    attack: resolvePublicAssetPath("spriteSheet.png"),
+    dead: resolvePublicAssetPath("spriteSheet.png"),
+    idle: resolvePublicAssetPath("spriteSheet.png"),
+    item: resolvePublicAssetPath("spriteSheet.png"),
+    jump: resolvePublicAssetPath("spriteSheet.png"),
+    special1: resolvePublicAssetPath("spriteSheet.png"),
+    special2: resolvePublicAssetPath("spriteSheet.png"),
+    walk: resolvePublicAssetPath("spriteSheet.png"),
 } as const;
 
-const FIREBALL_ANIMATION_SHEET =
-    resolvePublicAssetPath(
-        "Ninja%20Adventure%20-%20Asset%20Pack/FX/Projectile/Fireball.png",
-    );
+const FIREBALL_ANIMATION_SHEET = resolvePublicAssetPath("spriteSheet.png");
 const FIREBALL_FRAMES = [
     [0, 0],
     [1, 0],
@@ -87,10 +66,7 @@ const FIREBALL_HITBOX_SIZE_PX = 8;
 const FIREBALL_HITBOX_OFFSET_PX = 4;
 const PLAYER_ATTACK_COOLDOWN_MS = 250;
 
-const SMOKE_ANIMATION_SHEET =
-    resolvePublicAssetPath(
-        "Ninja%20Adventure%20-%20Asset%20Pack/FX/Smoke/Smoke/SpriteSheet.png",
-    );
+const SMOKE_ANIMATION_SHEET = resolvePublicAssetPath("spriteSheet.png");
 const SMOKE_FRAMES = [
     [0, 0],
     [1, 0],
@@ -104,10 +80,7 @@ const SMOKE_SCALER = 2;
 const SMOKE_FPS = 14;
 const SMOKE_LIFETIME_MS = 430;
 
-const EXPLOSION_ANIMATION_SHEET =
-    resolvePublicAssetPath(
-        "Ninja%20Adventure%20-%20Asset%20Pack/FX/Elemental/Explosion/SpriteSheet.png",
-    );
+const EXPLOSION_ANIMATION_SHEET = resolvePublicAssetPath("spriteSheet.png");
 const EXPLOSION_FRAMES = [
     [0, 0],
     [1, 0],
@@ -124,10 +97,7 @@ const EXPLOSION_FPS = 18;
 const EXPLOSION_LIFETIME_MS = 500;
 const PLAYER_SPECIAL_ATTACK_COOLDOWN_MS = 9000;
 
-const CYCLOPS_ANIMATION_SHEET =
-    resolvePublicAssetPath(
-        "Ninja%20Adventure%20-%20Asset%20Pack/Actor/Monsters/Cyclope/SpriteSheet.png",
-    );
+const CYCLOPS_ANIMATION_SHEET = resolvePublicAssetPath("spriteSheet.png");
 const CYCLOPS_SPRITE_SIZE = 16;
 const CYCLOPS_SCALER = 3;
 const CYCLOPS_FPS = 8;

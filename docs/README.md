@@ -26,17 +26,7 @@ Use this when navigating the default app shell after recent extraction refactors
 
 ## Example Asset Attribution
 
-Examples may use sprites from `public/Ninja Adventure - Asset Pack/`.
-
-- Asset creators:
-    - [Pixel-boy](https://pixel-boy.itch.io/)
-    - [AAA](https://www.instagram.com/challenger.aaa/?hl=fr)
-- License: CC0 1.0 Universal (`public/Ninja Adventure - Asset Pack/LICENSE.txt`)
-- Attribution requirement: not required by CC0, but appreciated by the creators
-
-Suggested attribution text for docs/videos/showcases:
-
-`Ninja Adventure Asset Pack by Pixel-boy and AAA (CC0 1.0). Source: https://pixel-boy.itch.io/ninja-adventure-asset-pack`
+Examples use locally bundled assets under `public/DemoAssets/` and `public/spriteSheet.png`.
 
 ## By Task
 

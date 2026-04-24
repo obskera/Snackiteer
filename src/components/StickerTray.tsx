@@ -34,6 +34,12 @@ const EDITION_BORDERS: Record<string, string> = {
 export function StickerTray({ stickers, maxSlots, onSell }: StickerTrayProps) {
     const [detailId, setDetailId] = useState<string | null>(null);
     const used = stickerSlotsUsed(stickers);
+    const slottedStickers = stickers.filter(
+        (sticker) => !EDITION_BONUSES[sticker.edition].freeSlot,
+    );
+    const bonusSlotStickers = stickers.filter(
+        (sticker) => EDITION_BONUSES[sticker.edition].freeSlot,
+    );
 
     const detailSticker = detailId
         ? stickers.find((s) => s.instanceId === detailId)
@@ -55,7 +61,7 @@ export function StickerTray({ stickers, maxSlots, onSell }: StickerTrayProps) {
                 </span>
             </div>
             <div className="sticker-tray__slots">
-                {stickers.map((sticker) => {
+                {slottedStickers.map((sticker, i) => {
                     const edition = EDITION_BONUSES[sticker.edition];
                     const editionClass = EDITION_BORDERS[sticker.edition] ?? "";
 
@@ -68,6 +74,7 @@ export function StickerTray({ stickers, maxSlots, onSell }: StickerTrayProps) {
                             }}
                             onClick={() => setDetailId(sticker.instanceId)}
                         >
+                            <div className="sticker__slot-index">Slot {i + 1}</div>
                             <div className="sticker__name">{sticker.name}</div>
                             {edition.label && (
                                 <div className="sticker__edition">
@@ -91,10 +98,43 @@ export function StickerTray({ stickers, maxSlots, onSell }: StickerTrayProps) {
                             key={`empty-${i}`}
                             className="sticker sticker--empty"
                         >
+                            <div className="sticker__slot-index">
+                                Slot {slottedStickers.length + i + 1}
+                            </div>
                             <span className="sticker__empty-icon">+</span>
                         </div>
                     ),
                 )}
+                {bonusSlotStickers.map((sticker, i) => {
+                    const edition = EDITION_BONUSES[sticker.edition];
+                    const editionClass = EDITION_BORDERS[sticker.edition] ?? "";
+                    return (
+                        <div
+                            key={sticker.instanceId}
+                            className={`sticker sticker--extra-slot ${editionClass}`}
+                            style={{
+                                borderColor: RARITY_COLORS[sticker.rarity],
+                            }}
+                            onClick={() => setDetailId(sticker.instanceId)}
+                        >
+                            <div className="sticker__slot-index">
+                                Slot {maxSlots + i + 1}
+                            </div>
+                            <div className="sticker__name">{sticker.name}</div>
+                            {edition.label && (
+                                <div className="sticker__edition">
+                                    {edition.label}
+                                </div>
+                            )}
+                            <div
+                                className="sticker__rarity"
+                                style={{ color: RARITY_COLORS[sticker.rarity] }}
+                            >
+                                {sticker.rarity}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
             {detailSticker && detailDef && detailEdition && (
                 <DetailPopover
